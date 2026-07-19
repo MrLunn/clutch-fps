@@ -25,3 +25,11 @@ MonoBehaviour:
   spreadDegrees: 1
   bloomPerShot: 0.3
   bloomRecoverPerSecond: 3
+  recoilPitchKick: 0.9
+  recoilYawKick: 0.15
+  recoilMinScale: 0.5
+  recoilMaxScale: 1.1
+  kickbackDistance: 0.09
+  kickbackRecoverSpeed: 10
+  crouchSpreadMultiplier: 0.5
+  crouchRecoilMultiplier: 0.75

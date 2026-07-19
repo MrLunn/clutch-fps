@@ -43,5 +43,25 @@ namespace ClutchFPS.Weapons
 
         [Tooltip("Bloom recovered per second while not firing.")]
         public float bloomRecoverPerSecond = 2.2f;
+
+        [Header("Recoil & Feel")]
+        [Tooltip("Degrees the view kicks up per shot (before scaling).")]
+        public float recoilPitchKick = 0.6f;
+        [Tooltip("Max random sideways kick per shot, in degrees.")]
+        public float recoilYawKick = 0.2f;
+        [Tooltip("Recoil multiplier on the first shot (zero bloom).")]
+        public float recoilMinScale = 0.35f;
+        [Tooltip("Recoil multiplier at full bloom.")]
+        public float recoilMaxScale = 1.25f;
+        [Tooltip("How far the weapon model snaps back per shot, in meters.")]
+        public float kickbackDistance = 0.07f;
+        [Tooltip("How fast the weapon eases back to rest.")]
+        public float kickbackRecoverSpeed = 8f;
+
+        [Header("Crouch Bonuses")]
+        [Tooltip("Multiplies max spread while crouched (lower = more accurate).")]
+        public float crouchSpreadMultiplier = 0.45f;
+        [Tooltip("Multiplies recoil while crouched.")]
+        public float crouchRecoilMultiplier = 0.7f;
     }
 }

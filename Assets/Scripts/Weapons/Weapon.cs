@@ -29,12 +29,6 @@ namespace ClutchFPS.Weapons
         private int _fireModeIndex;
         private bool _bursting;
 
-        [Header("Feel")]
-        [SerializeField] private float recoilPitchKick = 0.6f;
-        [SerializeField] private float recoilYawKick = 0.2f;
-        [SerializeField] private float kickbackDistance = 0.07f;
-        [SerializeField] private float kickbackRecoverSpeed = 8f;
-
         private Vector3 _restPosition;
         private float _kick;
         private MouseLook _mouseLook;
@@ -58,8 +52,8 @@ namespace ClutchFPS.Weapons
         private void Update()
         {
             // Kickback animation: snap back on fire, ease forward to rest.
-            _kick = Mathf.MoveTowards(_kick, 0f, kickbackRecoverSpeed * Time.deltaTime);
-            transform.localPosition = _restPosition - Vector3.forward * (_kick * kickbackDistance);
+            _kick = Mathf.MoveTowards(_kick, 0f, data.kickbackRecoverSpeed * Time.deltaTime);
+            transform.localPosition = _restPosition - Vector3.forward * (_kick * data.kickbackDistance);
 
             float recover = data.bloomRecoverPerSecond * Time.deltaTime;
             _serverBloom = Mathf.MoveTowards(_serverBloom, 0f, recover);
@@ -133,7 +127,7 @@ namespace ClutchFPS.Weapons
 
             _currentAmmo.Value--;
 
-            float maxSpread = data.spreadDegrees * (crouched ? 0.45f : 1f);
+            float maxSpread = data.spreadDegrees * (crouched ? data.crouchSpreadMultiplier : 1f);
             Vector3 spreadDirection = ApplySpread(direction, maxSpread * _serverBloom);
             _serverBloom = Mathf.Min(1f, _serverBloom + data.bloomPerShot);
             Vector3 hitPoint = origin + spreadDirection * data.range;
@@ -221,9 +215,9 @@ namespace ClutchFPS.Weapons
             if (IsOwner && _mouseLook != null)
             {
                 // First shots barely kick; sustained fire climbs harder. Crouching steadies.
-                float recoilScale = Mathf.Lerp(0.35f, 1.25f, _localBloom);
-                if (OwnerIsCrouching) recoilScale *= 0.7f;
-                _mouseLook.AddRecoil(recoilPitchKick * recoilScale, recoilYawKick * recoilScale);
+                float recoilScale = Mathf.Lerp(data.recoilMinScale, data.recoilMaxScale, _localBloom);
+                if (OwnerIsCrouching) recoilScale *= data.crouchRecoilMultiplier;
+                _mouseLook.AddRecoil(data.recoilPitchKick * recoilScale, data.recoilYawKick * recoilScale);
                 _localBloom = Mathf.Min(1f, _localBloom + data.bloomPerShot);
             }
         }
