@@ -34,6 +34,11 @@ MonoBehaviour:
   recoilMaxScale: 1.25
   kickbackDistance: 0.07
   kickbackRecoverSpeed: 8
+  adsFov: 46
+  adsSpreadMultiplier: 0.45
+  adsRecoilMultiplier: 0.75
+  adsMoveSpeedMultiplier: 0.55
+  adsPosition: {x: 0, y: -0.215, z: 0.3}
   crouchSpreadMultiplier: 0.45
   crouchRecoilMultiplier: 0.7
   fireSound: {fileID: 8300000, guid: 9e9480b4d07646942b555fd43f2a0f71, type: 3}

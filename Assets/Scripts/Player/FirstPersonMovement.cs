@@ -87,6 +87,16 @@ namespace ClutchFPS.Player
 
         public bool IsCrouching { get; private set; }
 
+        // ADS override from the weapon controller: fov 0 = not aiming.
+        private float _aimFov;
+        private float _aimMoveMultiplier = 1f;
+
+        public void SetAimState(float aimFov, float moveMultiplier)
+        {
+            _aimFov = aimFov;
+            _aimMoveMultiplier = moveMultiplier;
+        }
+
         [Tooltip("Body mesh transform squashed on remote clients while crouched.")]
         [SerializeField] private Transform bodyVisual;
 
@@ -251,9 +261,11 @@ namespace ClutchFPS.Player
             _controller.height = IsCrouching ? crouchHeight : standHeight;
             _controller.center = new Vector3(0f, _controller.height / 2f, 0f);
 
-            bool sprinting = keyboard != null && keyboard.leftShiftKey.isPressed && !IsCrouching;
+            bool aiming = _aimFov > 0f;
+            bool sprinting = keyboard != null && keyboard.leftShiftKey.isPressed && !IsCrouching && !aiming;
             float speed = sprinting ? sprintSpeed : walkSpeed;
             if (IsCrouching) speed *= crouchSpeedMultiplier;
+            if (aiming) speed *= _aimMoveMultiplier;
 
             // Momentum: ease toward the target velocity instead of snapping,
             // with reduced control mid-air.
@@ -287,11 +299,13 @@ namespace ClutchFPS.Player
                 cameraPivot.localPosition = pivotPosition;
             }
 
-            // Sprint FOV kick.
+            // FOV: ADS zoom wins, then the sprint kick, else base.
             if (_camera != null)
             {
-                float targetFov = sprinting && planarSpeed > walkSpeed * 0.9f ? sprintFov : _baseFov;
-                _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, 8f * Time.deltaTime);
+                float targetFov = aiming ? _aimFov
+                    : sprinting && planarSpeed > walkSpeed * 0.9f ? sprintFov
+                    : _baseFov;
+                _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, (aiming ? 12f : 8f) * Time.deltaTime);
             }
 
             // Footsteps: publish the movement state; ApplyFootsteps plays the

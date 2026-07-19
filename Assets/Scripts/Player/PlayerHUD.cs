@@ -77,7 +77,8 @@ namespace ClutchFPS.Player
                 return;
             }
 
-            DrawCrosshair();
+            // Crosshair hides while aiming down sights; hitmarkers stay.
+            if (weaponController == null || !weaponController.IsAiming) DrawCrosshair();
             DrawHitmarker();
             DrawStatus();
             DrawKillFeed();

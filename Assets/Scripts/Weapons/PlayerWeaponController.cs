@@ -14,10 +14,17 @@ namespace ClutchFPS.Weapons
 
         private int _activeIndex;
         private Player.PlayerRespawn _respawn;
+        private Player.FirstPersonMovement _movement;
+
+        /// Scales look sensitivity while aiming (read by MouseLook).
+        public static float LookSensitivityScale = 1f;
+
+        public bool IsAiming { get; private set; }
 
         private void Awake()
         {
             _respawn = GetComponent<Player.PlayerRespawn>();
+            _movement = GetComponent<Player.FirstPersonMovement>();
         }
 
         /// Re-applies holster state so only the active slot's model shows.
@@ -86,6 +93,17 @@ namespace ClutchFPS.Weapons
             var weapon = weapons[_activeIndex];
             var mouse = Mouse.current;
             if (mouse == null) return;
+
+            // ADS: hold right mouse. Feeds FOV/move-speed to movement and
+            // scales look sensitivity proportionally to the zoom.
+            IsAiming = mouse.rightButton.isPressed;
+            weapon.SetAiming(IsAiming);
+            LookSensitivityScale = IsAiming ? weapon.Data.adsFov / 60f : 1f;
+            if (_movement != null)
+            {
+                _movement.SetAimState(IsAiming ? weapon.Data.adsFov : 0f,
+                    weapon.Data.adsMoveSpeedMultiplier);
+            }
 
             switch (weapon.CurrentFireMode)
             {

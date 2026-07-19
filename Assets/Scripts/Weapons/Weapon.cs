@@ -41,6 +41,14 @@ namespace ClutchFPS.Weapons
         private float _serverBloom;
         private float _localBloom;
 
+        // ADS: set by the controller each frame; blend eases the view model
+        // between hip rest position and the centered aim position.
+        private bool _aiming;
+        private float _aimBlend;
+
+        public bool IsAiming => _aiming;
+        public void SetAiming(bool aiming) => _aiming = aiming;
+
         private FirstPersonMovement _movement;
         private Player.PlayerInventory _inventory;
         private Animator _modelAnimator;
@@ -89,11 +97,15 @@ namespace ClutchFPS.Weapons
 
         private void Update()
         {
+            // ADS blend eases between hip and aim positions.
+            _aimBlend = Mathf.MoveTowards(_aimBlend, _aiming ? 1f : 0f, 8f * Time.deltaTime);
+            Vector3 basePosition = Vector3.Lerp(_restPosition, data.adsPosition, _aimBlend);
+
             // Kickback + vibration: snap back on fire with a randomized shake
             // that damps out as the weapon eases forward to rest.
             _kick = Mathf.MoveTowards(_kick, 0f, data.kickbackRecoverSpeed * Time.deltaTime);
-            float jitter = _kick * 0.006f;
-            transform.localPosition = _restPosition
+            float jitter = _kick * 0.006f * (1f - _aimBlend * 0.5f);
+            transform.localPosition = basePosition
                 - Vector3.forward * (_kick * data.kickbackDistance)
                 + new Vector3(Random.Range(-jitter, jitter), Random.Range(-jitter, jitter), 0f);
             float muzzleRise = 30f * data.kickbackDistance;
@@ -138,7 +150,7 @@ namespace ClutchFPS.Weapons
             if (Time.time < _nextFireTime) return;
 
             _nextFireTime = Time.time + 1f / Mathf.Max(data.fireRate, 0.01f);
-            FireServerRpc(origin, direction.normalized, OwnerIsCrouching);
+            FireServerRpc(origin, direction.normalized, OwnerIsCrouching, _aiming);
         }
 
         /// Fires a full burst; aim is re-read per shot so the burst tracks the camera.
@@ -156,7 +168,7 @@ namespace ClutchFPS.Weapons
             for (int i = 0; i < data.burstCount; i++)
             {
                 if (_isReloading.Value || _currentAmmo.Value <= 0) break;
-                FireServerRpc(aim.position, aim.forward, OwnerIsCrouching);
+                FireServerRpc(aim.position, aim.forward, OwnerIsCrouching, _aiming);
                 yield return new WaitForSeconds(data.burstShotInterval);
             }
             _bursting = false;
@@ -183,13 +195,14 @@ namespace ClutchFPS.Weapons
         }
 
         [ServerRpc]
-        private void FireServerRpc(Vector3 origin, Vector3 direction, bool crouched, ServerRpcParams rpcParams = default)
+        private void FireServerRpc(Vector3 origin, Vector3 direction, bool crouched, bool aimed, ServerRpcParams rpcParams = default)
         {
             if (_isReloading.Value || _currentAmmo.Value <= 0) return;
 
             _currentAmmo.Value--;
 
             float maxSpread = data.spreadDegrees * (crouched ? data.crouchSpreadMultiplier : 1f);
+            if (aimed) maxSpread *= data.adsSpreadMultiplier;
             Vector3 spreadDirection = ApplySpread(direction, maxSpread * _serverBloom);
             _serverBloom = Mathf.Min(1f, _serverBloom + data.bloomPerShot);
             Vector3 hitPoint = origin + spreadDirection * data.range;
@@ -357,6 +370,7 @@ namespace ClutchFPS.Weapons
                 // First shots barely kick; sustained fire climbs harder. Crouching steadies.
                 float recoilScale = Mathf.Lerp(data.recoilMinScale, data.recoilMaxScale, _localBloom);
                 if (OwnerIsCrouching) recoilScale *= data.crouchRecoilMultiplier;
+                if (_aiming) recoilScale *= data.adsRecoilMultiplier;
                 _mouseLook.AddRecoil(data.recoilPitchKick * recoilScale, data.recoilYawKick * recoilScale);
                 _localBloom = Mathf.Min(1f, _localBloom + data.bloomPerShot);
             }

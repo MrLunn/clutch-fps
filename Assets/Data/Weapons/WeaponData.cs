@@ -61,6 +61,18 @@ namespace ClutchFPS.Weapons
         [Tooltip("How fast the weapon eases back to rest.")]
         public float kickbackRecoverSpeed = 8f;
 
+        [Header("Aim Down Sights")]
+        [Tooltip("Camera FOV while aiming (base is 60).")]
+        public float adsFov = 48f;
+        [Tooltip("Multiplies max spread while aiming.")]
+        public float adsSpreadMultiplier = 0.5f;
+        [Tooltip("Multiplies recoil while aiming.")]
+        public float adsRecoilMultiplier = 0.8f;
+        [Tooltip("Multiplies move speed while aiming.")]
+        public float adsMoveSpeedMultiplier = 0.6f;
+        [Tooltip("View-model local position when fully aimed (centered under the camera).")]
+        public Vector3 adsPosition = new(0f, -0.21f, 0.3f);
+
         [Header("Crouch Bonuses")]
         [Tooltip("Multiplies max spread while crouched (lower = more accurate).")]
         public float crouchSpreadMultiplier = 0.45f;
