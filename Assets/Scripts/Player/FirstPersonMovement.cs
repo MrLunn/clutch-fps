@@ -98,6 +98,11 @@ namespace ClutchFPS.Player
         private readonly NetworkVariable<bool> _crouchedSync = new(false,
             writePerm: NetworkVariableWritePermission.Owner);
 
+        // 0 idle/air, 1 walk, 2 sprint, 3 crouch-walk. Synced so every client
+        // hears every player's footsteps — sound intel is core gameplay.
+        private readonly NetworkVariable<byte> _moveStateSync = new(0,
+            writePerm: NetworkVariableWritePermission.Owner);
+
         private CharacterController _controller;
         private Vector3 _verticalVelocity;
         private Vector3 _horizontalVelocity;
@@ -123,8 +128,8 @@ namespace ClutchFPS.Player
             _footstepSource = gameObject.AddComponent<AudioSource>();
             _footstepSource.playOnAwake = false;
             _footstepSource.loop = true;
-            _footstepSource.spatialBlend = 0f;
-            _footstepSource.volume = 0.3f;
+            _footstepSource.minDistance = 2f;
+            _footstepSource.maxDistance = 25f;
 
             _tuningDefaults = TuningValues;
             LoadTuning();
@@ -136,6 +141,39 @@ namespace ClutchFPS.Player
             enabled = IsOwner;
             _crouchedSync.OnValueChanged += (_, crouched) => ApplyBodyCrouch(crouched);
             ApplyBodyCrouch(_crouchedSync.Value);
+            _moveStateSync.OnValueChanged += (_, state) => ApplyFootsteps(state);
+            ApplyFootsteps(_moveStateSync.Value);
+        }
+
+        /// Runs on every client (callbacks fire even while this component is
+        /// disabled for non-owners). Own steps are quiet and 2D; other
+        /// players' steps are positional 3D and clearly audible.
+        private void ApplyFootsteps(byte state)
+        {
+            if (_footstepSource == null) return;
+            if (state == 0)
+            {
+                if (_footstepSource.isPlaying) _footstepSource.Stop();
+                return;
+            }
+
+            AudioClip wanted = state == 2 ? runLoop : walkLoop;
+            if (wanted == null) return;
+
+            _footstepSource.spatialBlend = IsOwner ? 0f : 1f;
+            _footstepSource.pitch = state == 3 ? 0.8f : 1f;
+            float baseVolume = state == 3 ? 0.12f : state == 2 ? 0.45f : 0.3f;
+            _footstepSource.volume = IsOwner ? baseVolume * 0.8f : baseVolume * 1.5f;
+
+            if (_footstepSource.clip != wanted)
+            {
+                _footstepSource.clip = wanted;
+                _footstepSource.Play();
+            }
+            else if (!_footstepSource.isPlaying)
+            {
+                _footstepSource.Play();
+            }
         }
 
         private void ApplyBodyCrouch(bool crouched)
@@ -256,30 +294,14 @@ namespace ClutchFPS.Player
                 _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, 8f * Time.deltaTime);
             }
 
-            // Footstep loop: walk vs sprint clip, quieter while crouched.
-            if (_footstepSource != null)
-            {
-                bool moving = isGrounded && planarSpeed > 0.5f;
-                AudioClip wanted = sprinting ? runLoop : walkLoop;
-                if (moving && wanted != null)
-                {
-                    if (_footstepSource.clip != wanted)
-                    {
-                        _footstepSource.clip = wanted;
-                        _footstepSource.Play();
-                    }
-                    else if (!_footstepSource.isPlaying)
-                    {
-                        _footstepSource.Play();
-                    }
-                    _footstepSource.pitch = IsCrouching ? 0.8f : 1f;
-                    _footstepSource.volume = IsCrouching ? 0.12f : 0.3f;
-                }
-                else if (_footstepSource.isPlaying)
-                {
-                    _footstepSource.Stop();
-                }
-            }
+            // Footsteps: publish the movement state; ApplyFootsteps plays the
+            // loop on every client (including this one) via the sync callback.
+            bool moving = isGrounded && planarSpeed > 0.5f;
+            byte moveState = !moving ? (byte)0
+                : IsCrouching ? (byte)3
+                : sprinting ? (byte)2
+                : (byte)1;
+            if (_moveStateSync.Value != moveState) _moveStateSync.Value = moveState;
 
             if (isGrounded && keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
             {
