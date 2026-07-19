@@ -131,7 +131,7 @@ namespace ClutchFPS.Player
                 bool isSelf = player.IsOwner;
                 _smallStyle.normal.textColor = isSelf ? new Color(0.5f, 0.85f, 1f) : Color.white;
                 GUI.Label(new Rect(panel.x + 20, rowY, 200, 20),
-                    $"Player {player.OwnerClientId}{(isSelf ? " (you)" : "")}", _smallStyle);
+                    $"{player.ResolvedName}{(isSelf ? " (you)" : "")}", _smallStyle);
                 GUI.Label(new Rect(panel.x + 220, rowY, 50, 20), player.Kills.Value.ToString(), _smallStyle);
                 GUI.Label(new Rect(panel.x + 280, rowY, 50, 20), player.Deaths.Value.ToString(), _smallStyle);
                 rowY += 24;

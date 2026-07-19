@@ -1,6 +1,7 @@
 using ClutchFPS.Core;
 using ClutchFPS.Networking;
 using ClutchFPS.Weapons;
+using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -29,6 +30,12 @@ namespace ClutchFPS.Player
         public readonly NetworkVariable<int> Deaths = new(0,
             writePerm: NetworkVariableWritePermission.Server);
 
+        public readonly NetworkVariable<FixedString32Bytes> DisplayName = new(default,
+            writePerm: NetworkVariableWritePermission.Owner);
+
+        public string ResolvedName =>
+            DisplayName.Value.IsEmpty ? $"Player {OwnerClientId}" : DisplayName.Value.ToString();
+
         private void Awake()
         {
             _health = GetComponent<Health>();
@@ -38,6 +45,10 @@ namespace ClutchFPS.Player
 
         public override void OnNetworkSpawn()
         {
+            if (IsOwner)
+            {
+                DisplayName.Value = PlayerIdentity.LocalName;
+            }
             _health.Died += OnDiedServer;
             _isDead.OnValueChanged += (_, dead) => ApplyDeadState(dead);
             ApplyDeadState(_isDead.Value);
@@ -53,21 +64,23 @@ namespace ClutchFPS.Player
             if (!IsServer) return;
             _isDead.Value = true;
             Deaths.Value++;
+            string attackerName = ResolvedName;
             if (attackerClientId != OwnerClientId
                 && NetworkManager.ConnectedClients.TryGetValue(attackerClientId, out var attacker)
                 && attacker.PlayerObject != null
                 && attacker.PlayerObject.TryGetComponent<PlayerRespawn>(out var attackerRespawn))
             {
                 attackerRespawn.Kills.Value++;
+                attackerName = attackerRespawn.ResolvedName;
             }
-            KillFeedClientRpc(attackerClientId, OwnerClientId);
+            KillFeedClientRpc(attackerName, ResolvedName, attackerClientId == OwnerClientId);
             Invoke(nameof(RespawnServer), respawnDelay);
         }
 
         [ClientRpc]
-        private void KillFeedClientRpc(ulong attackerClientId, ulong victimClientId)
+        private void KillFeedClientRpc(string attackerName, string victimName, bool suicide)
         {
-            KillFeed.Add(attackerClientId, victimClientId);
+            KillFeed.Add(attackerName, victimName, suicide);
         }
 
         private void RespawnServer()

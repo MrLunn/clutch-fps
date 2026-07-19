@@ -15,13 +15,13 @@ namespace ClutchFPS.Player
         private const float MaxAge = 6f;
         private static readonly List<Entry> Entries = new();
 
-        public static void Add(ulong attackerClientId, ulong victimClientId)
+        public static void Add(string attackerName, string victimName, bool suicide)
         {
             Entries.Add(new Entry
             {
-                Text = attackerClientId == victimClientId
-                    ? $"Player {victimClientId} died"
-                    : $"Player {attackerClientId}  ▶  Player {victimClientId}",
+                Text = suicide
+                    ? $"{victimName} died"
+                    : $"{attackerName}  ▶  {victimName}",
                 Time = Time.time
             });
         }

@@ -45,10 +45,15 @@ namespace ClutchFPS.Networking
             // Centered so the buttons stay visible regardless of game-view
             // zoom/aspect cropping at the screen edges.
             float width = 240;
-            float height = 210;
+            float height = 270;
             GUILayout.BeginArea(new Rect(
                 (Screen.width - width) / 2f, (Screen.height - height) / 2f, width, height));
             GUILayout.Label("CLUTCH FPS");
+
+            GUILayout.Label("Name:");
+            Player.PlayerIdentity.LocalName =
+                GUILayout.TextField(Player.PlayerIdentity.LocalName, 20, GUILayout.Height(26));
+            GUILayout.Space(8);
 
             if (GUILayout.Button("Host", GUILayout.Height(36)))
             {
