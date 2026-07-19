@@ -20,6 +20,7 @@ GameObject:
   - component: {fileID: 1000020}
   - component: {fileID: 1000022}
   - component: {fileID: 1000024}
+  - component: {fileID: 1000026}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -166,6 +167,7 @@ MonoBehaviour:
   interactor: {fileID: 1000020}
   respawn: {fileID: 1000022}
   practice: {fileID: 1000024}
+  inventory: {fileID: 1000026}
 --- !u!114 &1000020
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -207,6 +209,18 @@ MonoBehaviour:
   runDuration: 60
   killScore: 100
   headshotScore: 150
+--- !u!114 &1000026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!1 &2000000
 GameObject:
   m_ObjectHideFlags: 0

@@ -15,9 +15,11 @@ namespace ClutchFPS.Player
         [SerializeField] private PlayerInteractor interactor;
         [SerializeField] private PlayerRespawn respawn;
         [SerializeField] private PracticeMode practice;
+        [SerializeField] private PlayerInventory inventory;
 
         private bool _settingsOpen;
         private bool _tuningOpen;
+        private bool _inventoryOpen;
         private int _tuningSlot;
         private static Texture2D _pixel;
 
@@ -30,6 +32,14 @@ namespace ClutchFPS.Player
             if (keyboard.f1Key.wasPressedThisFrame)
             {
                 _settingsOpen = !_settingsOpen;
+                _tuningOpen = false;
+                _inventoryOpen = false;
+                ApplyCursorState();
+            }
+            if (keyboard.tabKey.wasPressedThisFrame)
+            {
+                _inventoryOpen = !_inventoryOpen;
+                _settingsOpen = false;
                 _tuningOpen = false;
                 ApplyCursorState();
             }
@@ -47,7 +57,7 @@ namespace ClutchFPS.Player
 
         private void ApplyCursorState()
         {
-            bool anyMenu = _settingsOpen || _tuningOpen;
+            bool anyMenu = _settingsOpen || _tuningOpen || _inventoryOpen;
             Cursor.lockState = anyMenu ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = anyMenu;
         }
@@ -67,9 +77,10 @@ namespace ClutchFPS.Player
             DrawStatus();
             DrawKillFeed();
             DrawPractice();
-            if (Keyboard.current != null && Keyboard.current.tabKey.isPressed) DrawScoreboard();
+            if (Keyboard.current != null && Keyboard.current.vKey.isPressed) DrawScoreboard();
             if (_settingsOpen) DrawSettings();
             if (_tuningOpen) DrawWeaponTuning();
+            if (_inventoryOpen) DrawInventory();
         }
 
         private static Texture2D Pixel
@@ -119,6 +130,43 @@ namespace ClutchFPS.Player
                     break;
             }
             GUI.color = previous;
+        }
+
+        private void DrawInventory()
+        {
+            if (inventory == null) return;
+            EnsureStyles();
+
+            Rect panel = new(Screen.width / 2f - 190, Screen.height / 2f - 130, 380, 260);
+            GUI.Box(panel, "INVENTORY  (Tab to close — click an item to use it)");
+            GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 32, panel.width - 30, panel.height - 45));
+
+            if (inventory.SlotCount == 0)
+            {
+                GUILayout.Label("Empty. Loot medkits and ammo packs around the range with E.");
+            }
+
+            for (int i = 0; i < inventory.SlotCount; i += 3)
+            {
+                GUILayout.BeginHorizontal();
+                for (int j = i; j < Mathf.Min(i + 3, inventory.SlotCount); j++)
+                {
+                    var slot = inventory.GetSlot(j);
+                    var info = Core.Items.Get(slot.ItemId);
+                    var prev = GUI.backgroundColor;
+                    GUI.backgroundColor = info.Tint;
+                    if (GUILayout.Button($"{info.Name}\nx{slot.Count}", GUILayout.Width(110), GUILayout.Height(48)))
+                    {
+                        inventory.UseItemServerRpc(j);
+                    }
+                    GUI.backgroundColor = prev;
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Medkit: +50 HP    Ammo Pack: refills all weapons");
+            GUILayout.EndArea();
         }
 
         private void DrawPractice()

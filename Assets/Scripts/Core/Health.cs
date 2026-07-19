@@ -45,6 +45,14 @@ namespace ClutchFPS.Core
             }
         }
 
+        /// Server-only: heal without exceeding max. Used by medkits.
+        public void ServerHeal(float amount)
+        {
+            if (!IsServer || amount <= 0f) return;
+            if (_currentHealth.Value <= 0f) return;
+            _currentHealth.Value = Mathf.Min(maxHealth, _currentHealth.Value + amount);
+        }
+
         /// Server-only helper for respawns / range target resets.
         public void ResetHealth()
         {
