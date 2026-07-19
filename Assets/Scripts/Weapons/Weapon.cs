@@ -287,13 +287,23 @@ namespace ClutchFPS.Weapons
             SpawnTracer(muzzle, hitPoint);
             PlayModelAnimation(data.fireAnimation);
 
-            if (data.muzzleFlashPrefab != null)
+            // VFX must never kill the RPC (it carries hitmarkers and sounds):
+            // any failure falls back to the built-in effect.
+            try
             {
-                var mf = Instantiate(data.muzzleFlashPrefab, muzzle, transform.rotation);
-                Destroy(mf, data.vfxLifetime);
+                if (data.muzzleFlashPrefab != null)
+                {
+                    var mf = Instantiate(data.muzzleFlashPrefab, muzzle, transform.rotation);
+                    Destroy(mf, data.vfxLifetime);
+                }
+                else
+                {
+                    SpawnMuzzleFlash(muzzle);
+                }
             }
-            else
+            catch (System.Exception e)
             {
+                Debug.LogWarning($"Muzzle flash VFX failed: {e.Message}");
                 SpawnMuzzleFlash(muzzle);
             }
 
@@ -309,14 +319,22 @@ namespace ClutchFPS.Weapons
             if (hitType > 0)
             {
                 GameObject impactPrefab = hitType == 2 ? data.fleshImpactPrefab : data.worldImpactPrefab;
-                if (impactPrefab != null)
+                try
                 {
-                    var impact = Instantiate(impactPrefab, hitPoint, Quaternion.LookRotation(hitNormal));
-                    // World hits keep their bullet-hole mark around; flesh bursts are brief.
-                    Destroy(impact, hitType == 2 ? data.vfxLifetime : data.impactLifetime);
+                    if (impactPrefab != null)
+                    {
+                        var impact = Instantiate(impactPrefab, hitPoint, Quaternion.LookRotation(hitNormal));
+                        // World hits keep their bullet-hole mark around; flesh bursts are brief.
+                        Destroy(impact, hitType == 2 ? data.vfxLifetime : data.impactLifetime);
+                    }
+                    else
+                    {
+                        SpawnImpact(hitPoint, flesh: hitType == 2);
+                    }
                 }
-                else
+                catch (System.Exception e)
                 {
+                    Debug.LogWarning($"Impact VFX failed: {e.Message}");
                     SpawnImpact(hitPoint, flesh: hitType == 2);
                 }
                 if (data.impactSound != null)
