@@ -9,6 +9,9 @@ namespace ClutchFPS.Environment
     [RequireComponent(typeof(Health))]
     public class ShootingTarget : NetworkBehaviour
     {
+        /// Server-side broadcast whenever any range target dies: (attacker, headshot).
+        public static event System.Action<ulong, bool> TargetKilled;
+
         [SerializeField] private Transform visual;
         [SerializeField] private float respawnDelay = 2f;
 
@@ -34,6 +37,7 @@ namespace ClutchFPS.Environment
         private void OnDied(ulong attackerClientId)
         {
             if (!IsServer) return;
+            TargetKilled?.Invoke(attackerClientId, _health.LastDamageWasHeadshot);
             SetDeadClientRpc(true);
             Invoke(nameof(RespawnServer), respawnDelay);
         }

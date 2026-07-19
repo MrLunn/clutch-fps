@@ -18,6 +18,10 @@ namespace ClutchFPS.Core
         public event System.Action<float, float> HealthChanged;
         public event System.Action<ulong> Died;
 
+        /// True when the most recent damage came from an instant-kill HitZone
+        /// (weapons deal 99999 on headshots). Read by scoring systems.
+        public bool LastDamageWasHeadshot { get; private set; }
+
         public override void OnNetworkSpawn()
         {
             if (IsServer)
@@ -32,6 +36,7 @@ namespace ClutchFPS.Core
             if (!IsServer || amount <= 0f) return;
             if (_currentHealth.Value <= 0f) return;
 
+            LastDamageWasHeadshot = amount >= 9000f;
             _currentHealth.Value = Mathf.Max(0f, _currentHealth.Value - amount);
 
             if (_currentHealth.Value <= 0f)

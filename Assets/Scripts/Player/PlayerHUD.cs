@@ -14,6 +14,7 @@ namespace ClutchFPS.Player
         [SerializeField] private Health health;
         [SerializeField] private PlayerInteractor interactor;
         [SerializeField] private PlayerRespawn respawn;
+        [SerializeField] private PracticeMode practice;
 
         private bool _settingsOpen;
         private bool _tuningOpen;
@@ -65,6 +66,7 @@ namespace ClutchFPS.Player
             DrawHitmarker();
             DrawStatus();
             DrawKillFeed();
+            DrawPractice();
             if (Keyboard.current != null && Keyboard.current.tabKey.isPressed) DrawScoreboard();
             if (_settingsOpen) DrawSettings();
             if (_tuningOpen) DrawWeaponTuning();
@@ -117,6 +119,40 @@ namespace ClutchFPS.Player
                     break;
             }
             GUI.color = previous;
+        }
+
+        private void DrawPractice()
+        {
+            if (practice == null) return;
+            EnsureStyles();
+
+            if (practice.IsActive)
+            {
+                int seconds = Mathf.CeilToInt(practice.TimeRemaining);
+                _promptStyle.fontSize = 30;
+                _promptStyle.normal.textColor = seconds <= 10 ? new Color(1f, 0.4f, 0.3f) : Color.white;
+                GUI.Label(new Rect(0, 24, Screen.width, 36), $"{seconds / 60}:{seconds % 60:00}", _promptStyle);
+                _promptStyle.fontSize = 20;
+                _promptStyle.normal.textColor = new Color(1f, 0.85f, 0.3f);
+                GUI.Label(new Rect(0, 60, Screen.width, 26), $"SCORE  {practice.Score}", _promptStyle);
+                _promptStyle.fontSize = 18;
+            }
+            else if (Time.time - practice.RunEndedAt < 5f)
+            {
+                _promptStyle.fontSize = 24;
+                _promptStyle.normal.textColor = new Color(1f, 0.85f, 0.3f);
+                GUI.Label(new Rect(0, 30, Screen.width, 30),
+                    $"RUN COMPLETE  —  {practice.LastScore} pts   (Best {practice.BestScore})", _promptStyle);
+                _promptStyle.fontSize = 18;
+            }
+            else
+            {
+                _smallStyle.alignment = TextAnchor.MiddleLeft;
+                _smallStyle.normal.textColor = new Color(1f, 1f, 1f, 0.45f);
+                GUI.Label(new Rect(24, Screen.height - 76, 220, 18),
+                    $"[P] Practice run   Best: {practice.BestScore}", _smallStyle);
+                _smallStyle.alignment = TextAnchor.MiddleRight;
+            }
         }
 
         private void DrawKillFeed()
