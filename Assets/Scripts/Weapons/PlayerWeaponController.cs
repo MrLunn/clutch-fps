@@ -79,6 +79,7 @@ namespace ClutchFPS.Weapons
         {
             if (!IsOwner || weapons.Length == 0) return;
             if (_respawn != null && _respawn.IsDead) return;
+            if (Player.PlayerHUD.LocalMenuOpen) return;
 
             HandleSwitchInput();
 

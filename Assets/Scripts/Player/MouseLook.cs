@@ -48,6 +48,7 @@ namespace ClutchFPS.Player
         private void Update()
         {
             if (!IsOwner) return;
+            if (PlayerHUD.LocalMenuOpen) return;
 
             Vector2 delta = Mouse.current?.delta.ReadValue() ?? Vector2.zero;
 

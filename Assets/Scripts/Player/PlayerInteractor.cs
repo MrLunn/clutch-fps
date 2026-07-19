@@ -36,6 +36,7 @@ namespace ClutchFPS.Player
         private void Update()
         {
             if (!IsOwner || Nearby == null) return;
+            if (PlayerHUD.LocalMenuOpen) return;
             if (_respawn == null) _respawn = GetComponent<PlayerRespawn>();
             if (_respawn != null && _respawn.IsDead) return;
             var keyboard = Keyboard.current;

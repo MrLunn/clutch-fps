@@ -78,6 +78,7 @@ namespace ClutchFPS.Player
             }
 
             if (!IsOwner || _active.Value) return;
+            if (PlayerHUD.LocalMenuOpen) return;
             if (_respawn != null && _respawn.IsDead) return;
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.pKey.wasPressedThisFrame)

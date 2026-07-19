@@ -23,6 +23,10 @@ namespace ClutchFPS.Player
         private int _tuningSlot;
         private static Texture2D _pixel;
 
+        /// True while the local player has any menu open — gameplay input
+        /// (look, fire, interact) checks this and stands down.
+        public static bool LocalMenuOpen { get; private set; }
+
         private void Update()
         {
             if (!IsOwner) return;
@@ -58,6 +62,7 @@ namespace ClutchFPS.Player
         private void ApplyCursorState()
         {
             bool anyMenu = _settingsOpen || _tuningOpen || _inventoryOpen;
+            LocalMenuOpen = anyMenu;
             Cursor.lockState = anyMenu ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = anyMenu;
         }
