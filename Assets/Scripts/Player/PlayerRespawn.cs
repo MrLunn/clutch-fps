@@ -64,7 +64,9 @@ namespace ClutchFPS.Player
             if (!IsServer) return;
             _isDead.Value = true;
             Deaths.Value++;
-            string attackerName = ResolvedName;
+            // AI kills show as "Enemy"; unknown attackers fall back to the victim.
+            string attackerName = attackerClientId == Environment.EnemyAI.AiClientId
+                ? "Enemy" : ResolvedName;
             if (attackerClientId != OwnerClientId
                 && NetworkManager.ConnectedClients.TryGetValue(attackerClientId, out var attacker)
                 && attacker.PlayerObject != null
