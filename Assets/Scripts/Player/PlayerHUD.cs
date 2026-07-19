@@ -503,7 +503,7 @@ namespace ClutchFPS.Player
                 float right = Screen.width - 24;
                 float y = Screen.height - 108;
 
-                _nameStyle.normal.textColor = Color.white;
+                _nameStyle.normal.textColor = Core.RarityColors.Get(weapon.Data.rarity);
                 GUI.Label(new Rect(right - 280, y, 280, 26), weapon.Data.weaponName.ToUpper(), _nameStyle);
 
                 _ammoStyle.normal.textColor =
@@ -542,7 +542,7 @@ namespace ClutchFPS.Player
             var nearby = interactor != null ? interactor.Nearby : null;
             if (nearby != null)
             {
-                _promptStyle.normal.textColor = Color.white;
+                _promptStyle.normal.textColor = Core.RarityColors.Get(nearby.Rarity);
                 GUI.Label(new Rect(Screen.width / 2f - 200, Screen.height * 0.62f, 400, 30),
                     $"[E]  Pick up {nearby.DisplayName}", _promptStyle);
             }

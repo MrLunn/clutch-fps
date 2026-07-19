@@ -15,6 +15,7 @@ namespace ClutchFPS.Weapons
     public class WeaponData : ScriptableObject
     {
         public string weaponName = "Weapon";
+        public Core.Rarity rarity = Core.Rarity.Common;
 
         [Tooltip("Fire modes this weapon supports. B cycles through them in game.")]
         public FireMode[] availableFireModes = { FireMode.Single };

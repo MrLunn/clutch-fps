@@ -11,6 +11,9 @@ namespace ClutchFPS.Environment
     public abstract class LootPickup : NetworkBehaviour
     {
         [SerializeField] private string displayName = "Item";
+        [SerializeField] private Core.Rarity rarity = Core.Rarity.Common;
+
+        public Core.Rarity Rarity => rarity;
         [SerializeField] private GameObject visual;
         [SerializeField] private float respawnSeconds = 10f;
         [SerializeField] private float spinDegreesPerSecond = 90f;

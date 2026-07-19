@@ -13,9 +13,36 @@ namespace ClutchFPS.Weapons
     public class Weapon : NetworkBehaviour
     {
         [SerializeField] private WeaponData data;
+        [SerializeField] private WeaponDatabase database;
         [SerializeField] private LayerMask hittableMask = ~0;
 
-        public WeaponData Data => data;
+        /// Loot can swap this slot's weapon variant: the synced index selects
+        /// from the database; -1 means the serialized default.
+        private readonly NetworkVariable<short> _dataIndex = new(-1,
+            writePerm: NetworkVariableWritePermission.Server);
+
+        public WeaponData Data
+        {
+            get
+            {
+                if (_dataIndex.Value >= 0 && database != null)
+                {
+                    var variant = database.Get(_dataIndex.Value);
+                    if (variant != null) return variant;
+                }
+                return data;
+            }
+        }
+
+        /// Server-side: swap this slot to a database variant, fresh mag.
+        public void ServerSetWeaponData(int index)
+        {
+            if (!IsServer) return;
+            CancelInvoke(nameof(FinishReloadServer));
+            _isReloading.Value = false;
+            _dataIndex.Value = (short)index;
+            _currentAmmo.Value = Data.magazineSize;
+        }
 
         private readonly NetworkVariable<int> _currentAmmo = new(
             writePerm: NetworkVariableWritePermission.Server);
@@ -99,22 +126,22 @@ namespace ClutchFPS.Weapons
         {
             // ADS blend eases between hip and aim positions.
             _aimBlend = Mathf.MoveTowards(_aimBlend, _aiming ? 1f : 0f, 8f * Time.deltaTime);
-            Vector3 basePosition = Vector3.Lerp(_restPosition, data.adsPosition, _aimBlend);
+            Vector3 basePosition = Vector3.Lerp(_restPosition, Data.adsPosition, _aimBlend);
 
             // Kickback + vibration: snap back on fire with a randomized shake
             // that damps out as the weapon eases forward to rest.
-            _kick = Mathf.MoveTowards(_kick, 0f, data.kickbackRecoverSpeed * Time.deltaTime);
+            _kick = Mathf.MoveTowards(_kick, 0f, Data.kickbackRecoverSpeed * Time.deltaTime);
             float jitter = _kick * 0.006f * (1f - _aimBlend * 0.5f);
             transform.localPosition = basePosition
-                - Vector3.forward * (_kick * data.kickbackDistance)
+                - Vector3.forward * (_kick * Data.kickbackDistance)
                 + new Vector3(Random.Range(-jitter, jitter), Random.Range(-jitter, jitter), 0f);
-            float muzzleRise = 30f * data.kickbackDistance;
+            float muzzleRise = 30f * Data.kickbackDistance;
             transform.localRotation = _restRotation * Quaternion.Euler(
                 -muzzleRise * _kick + Random.Range(-0.8f, 0.8f) * _kick,
                 Random.Range(-0.8f, 0.8f) * _kick,
                 Random.Range(-1.5f, 1.5f) * _kick);
 
-            float recover = data.bloomRecoverPerSecond * Time.deltaTime;
+            float recover = Data.bloomRecoverPerSecond * Time.deltaTime;
             _serverBloom = Mathf.MoveTowards(_serverBloom, 0f, recover);
             _localBloom = Mathf.MoveTowards(_localBloom, 0f, recover);
         }
@@ -123,21 +150,21 @@ namespace ClutchFPS.Weapons
         public float CurrentBloom => _localBloom;
 
         public FireMode CurrentFireMode =>
-            data.availableFireModes != null && data.availableFireModes.Length > 0
-                ? data.availableFireModes[Mathf.Clamp(_fireModeIndex, 0, data.availableFireModes.Length - 1)]
+            Data.availableFireModes != null && Data.availableFireModes.Length > 0
+                ? Data.availableFireModes[Mathf.Clamp(_fireModeIndex, 0, Data.availableFireModes.Length - 1)]
                 : FireMode.Single;
 
         public void CycleFireMode()
         {
-            if (data.availableFireModes == null || data.availableFireModes.Length < 2) return;
-            _fireModeIndex = (_fireModeIndex + 1) % data.availableFireModes.Length;
+            if (Data.availableFireModes == null || Data.availableFireModes.Length < 2) return;
+            _fireModeIndex = (_fireModeIndex + 1) % Data.availableFireModes.Length;
         }
 
         public override void OnNetworkSpawn()
         {
             if (IsServer)
             {
-                _currentAmmo.Value = data.magazineSize;
+                _currentAmmo.Value = Data.magazineSize;
             }
             _currentAmmo.OnValueChanged += (_, _) => AmmoChanged?.Invoke();
         }
@@ -149,7 +176,7 @@ namespace ClutchFPS.Weapons
             if (_isReloading.Value || _currentAmmo.Value <= 0) return;
             if (Time.time < _nextFireTime) return;
 
-            _nextFireTime = Time.time + 1f / Mathf.Max(data.fireRate, 0.01f);
+            _nextFireTime = Time.time + 1f / Mathf.Max(Data.fireRate, 0.01f);
             FireServerRpc(origin, direction.normalized, OwnerIsCrouching, _aiming);
         }
 
@@ -165,23 +192,23 @@ namespace ClutchFPS.Weapons
         private System.Collections.IEnumerator BurstRoutine(Transform aim)
         {
             _bursting = true;
-            for (int i = 0; i < data.burstCount; i++)
+            for (int i = 0; i < Data.burstCount; i++)
             {
                 if (_isReloading.Value || _currentAmmo.Value <= 0) break;
                 FireServerRpc(aim.position, aim.forward, OwnerIsCrouching, _aiming);
-                yield return new WaitForSeconds(data.burstShotInterval);
+                yield return new WaitForSeconds(Data.burstShotInterval);
             }
             _bursting = false;
-            _nextFireTime = Time.time + 1f / Mathf.Max(data.fireRate, 0.01f);
+            _nextFireTime = Time.time + 1f / Mathf.Max(Data.fireRate, 0.01f);
         }
 
         /// Reserve rounds available for this weapon in the carrier's inventory.
-        public int ReserveAmmo => _inventory != null ? _inventory.CountOf(data.ammoItemId) : 0;
+        public int ReserveAmmo => _inventory != null ? _inventory.CountOf(Data.ammoItemId) : 0;
 
         public void TryReload()
         {
             if (!IsOwner || _isReloading.Value) return;
-            if (_currentAmmo.Value >= data.magazineSize)
+            if (_currentAmmo.Value >= Data.magazineSize)
             {
                 HitFeedback.RegisterMagFull();
                 return;
@@ -201,17 +228,17 @@ namespace ClutchFPS.Weapons
 
             _currentAmmo.Value--;
 
-            float maxSpread = data.spreadDegrees * (crouched ? data.crouchSpreadMultiplier : 1f);
-            if (aimed) maxSpread *= data.adsSpreadMultiplier;
+            float maxSpread = Data.spreadDegrees * (crouched ? Data.crouchSpreadMultiplier : 1f);
+            if (aimed) maxSpread *= Data.adsSpreadMultiplier;
             Vector3 spreadDirection = ApplySpread(direction, maxSpread * _serverBloom);
-            _serverBloom = Mathf.Min(1f, _serverBloom + data.bloomPerShot);
-            Vector3 hitPoint = origin + spreadDirection * data.range;
+            _serverBloom = Mathf.Min(1f, _serverBloom + Data.bloomPerShot);
+            Vector3 hitPoint = origin + spreadDirection * Data.range;
 
             byte hitType = 0; // 0 = air, 1 = world, 2 = flesh
             bool headshot = false;
             bool killed = false;
             Vector3 hitNormal = -spreadDirection;
-            if (Physics.Raycast(origin, spreadDirection, out RaycastHit hit, data.range, hittableMask))
+            if (Physics.Raycast(origin, spreadDirection, out RaycastHit hit, Data.range, hittableMask))
             {
                 hitPoint = hit.point;
                 hitNormal = hit.normal;
@@ -219,7 +246,7 @@ namespace ClutchFPS.Weapons
                 if (damageable != null)
                 {
                     hitType = 2;
-                    float damage = data.damage;
+                    float damage = Data.damage;
                     if (hit.collider.TryGetComponent<HitZone>(out var zone))
                     {
                         headshot = true;
@@ -253,10 +280,10 @@ namespace ClutchFPS.Weapons
         public bool ServerRefillAmmo()
         {
             if (!IsServer) return false;
-            if (_currentAmmo.Value >= data.magazineSize && !_isReloading.Value) return false;
+            if (_currentAmmo.Value >= Data.magazineSize && !_isReloading.Value) return false;
             CancelInvoke(nameof(FinishReloadServer));
             _isReloading.Value = false;
-            _currentAmmo.Value = data.magazineSize;
+            _currentAmmo.Value = Data.magazineSize;
             return true;
         }
 
@@ -264,27 +291,27 @@ namespace ClutchFPS.Weapons
         {
             if (_isReloading.Value) return;
             // No reserve, no reload — ammo is a real resource now.
-            if (_inventory != null && _inventory.CountOf(data.ammoItemId) <= 0) return;
+            if (_inventory != null && _inventory.CountOf(Data.ammoItemId) <= 0) return;
             _isReloading.Value = true;
             ReloadSoundClientRpc();
-            Invoke(nameof(FinishReloadServer), data.reloadTime);
+            Invoke(nameof(FinishReloadServer), Data.reloadTime);
         }
 
         [ClientRpc]
         private void ReloadSoundClientRpc()
         {
-            if (data.reloadSound != null)
+            if (Data.reloadSound != null)
             {
-                AudioSource.PlayClipAtPoint(data.reloadSound, transform.position, 0.7f);
+                AudioSource.PlayClipAtPoint(Data.reloadSound, transform.position, 0.7f);
             }
-            PlayModelAnimation(data.reloadAnimation);
+            PlayModelAnimation(Data.reloadAnimation);
         }
 
         private void FinishReloadServer()
         {
-            int needed = data.magazineSize - _currentAmmo.Value;
+            int needed = Data.magazineSize - _currentAmmo.Value;
             int loaded = _inventory != null
-                ? _inventory.ServerTakeItem(data.ammoItemId, needed)
+                ? _inventory.ServerTakeItem(Data.ammoItemId, needed)
                 : needed;
             _currentAmmo.Value += loaded;
             _isReloading.Value = false;
@@ -298,17 +325,17 @@ namespace ClutchFPS.Weapons
             // every perspective, even though the actual ray came from the camera.
             Vector3 muzzle = transform.position + transform.forward * 0.5f;
             SpawnTracer(muzzle, hitPoint);
-            PlayModelAnimation(data.fireAnimation);
+            PlayModelAnimation(Data.fireAnimation);
 
             // VFX must never kill the RPC (it carries hitmarkers and sounds):
             // any failure falls back to the built-in effect.
             try
             {
-                if (data.muzzleFlashPrefab != null)
+                if (Data.muzzleFlashPrefab != null)
                 {
                     // Parented so it rides the weapon; destroyed fast because
                     // WarFX muzzle flashes loop while alive.
-                    var mf = Instantiate(data.muzzleFlashPrefab, muzzle, transform.rotation, transform);
+                    var mf = Instantiate(Data.muzzleFlashPrefab, muzzle, transform.rotation, transform);
                     Destroy(mf, 0.06f);
                 }
                 else
@@ -322,9 +349,9 @@ namespace ClutchFPS.Weapons
                 SpawnMuzzleFlash(muzzle);
             }
 
-            if (data.fireSound != null)
+            if (Data.fireSound != null)
             {
-                AudioSource.PlayClipAtPoint(data.fireSound, muzzle, data.fireVolume);
+                AudioSource.PlayClipAtPoint(Data.fireSound, muzzle, Data.fireVolume);
             }
             else
             {
@@ -333,14 +360,14 @@ namespace ClutchFPS.Weapons
 
             if (hitType > 0)
             {
-                GameObject impactPrefab = hitType == 2 ? data.fleshImpactPrefab : data.worldImpactPrefab;
+                GameObject impactPrefab = hitType == 2 ? Data.fleshImpactPrefab : Data.worldImpactPrefab;
                 try
                 {
                     if (impactPrefab != null)
                     {
                         var impact = Instantiate(impactPrefab, hitPoint, Quaternion.LookRotation(hitNormal));
                         // World hits keep their bullet-hole mark around; flesh bursts are brief.
-                        Destroy(impact, hitType == 2 ? data.vfxLifetime : data.impactLifetime);
+                        Destroy(impact, hitType == 2 ? Data.vfxLifetime : Data.impactLifetime);
                     }
                     else
                     {
@@ -352,9 +379,9 @@ namespace ClutchFPS.Weapons
                     Debug.LogWarning($"Impact VFX failed: {e.Message}");
                     SpawnImpact(hitPoint, flesh: hitType == 2);
                 }
-                if (data.impactSound != null)
+                if (Data.impactSound != null)
                 {
-                    AudioSource.PlayClipAtPoint(data.impactSound, hitPoint, 0.6f);
+                    AudioSource.PlayClipAtPoint(Data.impactSound, hitPoint, 0.6f);
                 }
             }
             if (IsOwner && hitType == 2)
@@ -368,11 +395,11 @@ namespace ClutchFPS.Weapons
             if (IsOwner && _mouseLook != null)
             {
                 // First shots barely kick; sustained fire climbs harder. Crouching steadies.
-                float recoilScale = Mathf.Lerp(data.recoilMinScale, data.recoilMaxScale, _localBloom);
-                if (OwnerIsCrouching) recoilScale *= data.crouchRecoilMultiplier;
-                if (_aiming) recoilScale *= data.adsRecoilMultiplier;
-                _mouseLook.AddRecoil(data.recoilPitchKick * recoilScale, data.recoilYawKick * recoilScale);
-                _localBloom = Mathf.Min(1f, _localBloom + data.bloomPerShot);
+                float recoilScale = Mathf.Lerp(Data.recoilMinScale, Data.recoilMaxScale, _localBloom);
+                if (OwnerIsCrouching) recoilScale *= Data.crouchRecoilMultiplier;
+                if (_aiming) recoilScale *= Data.adsRecoilMultiplier;
+                _mouseLook.AddRecoil(Data.recoilPitchKick * recoilScale, Data.recoilYawKick * recoilScale);
+                _localBloom = Mathf.Min(1f, _localBloom + Data.bloomPerShot);
             }
         }
 
@@ -380,9 +407,9 @@ namespace ClutchFPS.Weapons
 
         private void SpawnTracer(Vector3 from, Vector3 to)
         {
-            if (_tracerMaterial == null && data.tracerMaterial != null)
+            if (_tracerMaterial == null && Data.tracerMaterial != null)
             {
-                _tracerMaterial = data.tracerMaterial;
+                _tracerMaterial = Data.tracerMaterial;
             }
             if (_tracerMaterial == null)
             {

@@ -364,6 +364,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   data: {fileID: 11400000, guid: bc11eac51c6b3fb409edb9fbcb8108ec, type: 2}
+  database: {fileID: 11400000, guid: f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7, type: 2}
   hittableMask:
     serializedVersion: 2
     m_Bits: 4294967231
@@ -663,6 +664,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   data: {fileID: 11400000, guid: 04573ee8c4fc48f41a37b9be34cee077, type: 2}
+  database: {fileID: 11400000, guid: f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7, type: 2}
   hittableMask:
     serializedVersion: 2
     m_Bits: 4294967231
@@ -1106,6 +1108,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   data: {fileID: 11400000, guid: e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7, type: 2}
+  database: {fileID: 11400000, guid: f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7, type: 2}
   hittableMask:
     serializedVersion: 2
     m_Bits: 4294967231
