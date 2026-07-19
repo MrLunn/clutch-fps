@@ -148,7 +148,9 @@ namespace ClutchFPS.Player
                 GUI.Label(new Rect(right - 280, y + 26, 280, 32), ammoText, _ammoStyle);
 
                 _smallStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
-                GUI.Label(new Rect(right - 280, y + 58, 280, 18), weapon.CurrentFireMode.ToString().ToUpper(), _smallStyle);
+                string modeText = weapon.CurrentFireMode.ToString().ToUpper();
+                if (Time.time - HitFeedback.MagFullTime < 1f) modeText = "MAG FULL";
+                GUI.Label(new Rect(right - 280, y + 58, 280, 18), modeText, _smallStyle);
 
                 // Slot strip: dim unowned, highlight active.
                 string strip = "";

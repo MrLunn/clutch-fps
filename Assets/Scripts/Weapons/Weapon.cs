@@ -126,8 +126,12 @@ namespace ClutchFPS.Weapons
 
         public void TryReload()
         {
-            if (!IsOwner) return;
-            if (_isReloading.Value || _currentAmmo.Value >= data.magazineSize) return;
+            if (!IsOwner || _isReloading.Value) return;
+            if (_currentAmmo.Value >= data.magazineSize)
+            {
+                HitFeedback.RegisterMagFull();
+                return;
+            }
             ReloadServerRpc();
         }
 

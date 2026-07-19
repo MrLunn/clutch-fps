@@ -7,10 +7,16 @@ namespace ClutchFPS.Weapons
     public static class HitFeedback
     {
         public static float LastHitTime { get; private set; } = -10f;
+        public static float MagFullTime { get; private set; } = -10f;
 
         public static void RegisterHit()
         {
             LastHitTime = Time.time;
+        }
+
+        public static void RegisterMagFull()
+        {
+            MagFullTime = Time.time;
         }
     }
 }
