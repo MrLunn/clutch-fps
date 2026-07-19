@@ -17,8 +17,8 @@ namespace ClutchFPS.Player
         [SerializeField] private float crouchSpeedMultiplier = 0.55f;
         [SerializeField] private float standHeight = 1.8f;
         [SerializeField] private float crouchHeight = 1.2f;
-        [SerializeField] private float standCameraY = 0.7f;
-        [SerializeField] private float crouchCameraY = 0.35f;
+        [SerializeField] private float standCameraY = 1.62f;
+        [SerializeField] private float crouchCameraY = 1.05f;
         [SerializeField] private float crouchTransitionSpeed = 6f;
 
         public bool IsCrouching { get; private set; }
