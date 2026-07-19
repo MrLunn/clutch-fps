@@ -149,8 +149,32 @@ namespace ClutchFPS.Weapons
         [ClientRpc]
         private void HitEffectClientRpc(Vector3 origin, Vector3 hitPoint)
         {
-            Debug.DrawLine(origin, hitPoint, Color.yellow, 0.15f);
-            // Hook muzzle flash / tracer / impact VFX here once art assets exist.
+            // Tracer starts at this weapon's muzzle so it reads correctly from
+            // every perspective, even though the actual ray came from the camera.
+            Vector3 muzzle = transform.position + transform.forward * 0.5f;
+            SpawnTracer(muzzle, hitPoint);
+        }
+
+        private static Material _tracerMaterial;
+
+        private static void SpawnTracer(Vector3 from, Vector3 to)
+        {
+            if (_tracerMaterial == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Unlit/Color");
+                _tracerMaterial = new Material(shader) { color = new Color(1f, 0.85f, 0.3f) };
+            }
+
+            var tracer = new GameObject("Tracer");
+            var line = tracer.AddComponent<LineRenderer>();
+            line.positionCount = 2;
+            line.SetPosition(0, from);
+            line.SetPosition(1, to);
+            line.startWidth = 0.02f;
+            line.endWidth = 0.005f;
+            line.material = _tracerMaterial;
+            Destroy(tracer, 0.07f);
         }
 
         private static Vector3 ApplySpread(Vector3 direction, float spreadDegrees)
