@@ -30,7 +30,10 @@ namespace ClutchFPS.Networking
             if (client.PlayerObject == null) return;
 
             Transform point = spawnPoints[Random.Range(0, spawnPoints.Length)];
-            client.PlayerObject.transform.SetPositionAndRotation(point.position, point.rotation);
+            if (client.PlayerObject.TryGetComponent<Player.FirstPersonMovement>(out var movement))
+            {
+                movement.TeleportClientRpc(point.position);
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ namespace ClutchFPS.Weapons
     public enum FireMode
     {
         Single,
+        Burst,
         Automatic
     }
 
@@ -14,7 +15,14 @@ namespace ClutchFPS.Weapons
     public class WeaponData : ScriptableObject
     {
         public string weaponName = "Weapon";
-        public FireMode fireMode = FireMode.Single;
+
+        [Tooltip("Fire modes this weapon supports. B cycles through them in game.")]
+        public FireMode[] availableFireModes = { FireMode.Single };
+
+        [Header("Burst")]
+        public int burstCount = 3;
+        [Tooltip("Seconds between the shots inside one burst.")]
+        public float burstShotInterval = 0.08f;
 
         [Header("Damage & Range")]
         public float damage = 20f;

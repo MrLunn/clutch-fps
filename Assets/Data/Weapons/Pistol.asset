@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Pistol
   m_EditorClassIdentifier:
   weaponName: Pistol
-  fireMode: 0
+  availableFireModes:
+  - 0
+  burstCount: 3
+  burstShotInterval: 0.08
   damage: 25
   range: 60
   fireRate: 4

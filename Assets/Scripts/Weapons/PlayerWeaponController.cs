@@ -14,6 +14,22 @@ namespace ClutchFPS.Weapons
 
         private int _activeIndex;
 
+        /// Owner-side only: which weapon the local player currently has out.
+        public Weapon ActiveWeapon =>
+            weapons != null && weapons.Length > 0 ? weapons[_activeIndex] : null;
+
+        /// Server-side: refill every carried weapon. Returns true if any needed ammo.
+        public bool ServerRefillAllAmmo()
+        {
+            if (!IsServer) return false;
+            bool anyRefilled = false;
+            foreach (var weapon in weapons)
+            {
+                anyRefilled |= weapon.ServerRefillAmmo();
+            }
+            return anyRefilled;
+        }
+
         public override void OnNetworkSpawn()
         {
             enabled = IsOwner;
@@ -33,18 +49,30 @@ namespace ClutchFPS.Weapons
             var mouse = Mouse.current;
             if (mouse == null) return;
 
-            bool wantsToFire = weapon.Data.fireMode == FireMode.Automatic
-                ? mouse.leftButton.isPressed
-                : mouse.leftButton.wasPressedThisFrame;
-
-            if (wantsToFire)
+            switch (weapon.CurrentFireMode)
             {
-                weapon.TryFire(playerCamera.transform.position, playerCamera.transform.forward);
+                case FireMode.Automatic:
+                    if (mouse.leftButton.isPressed)
+                        weapon.TryFire(playerCamera.transform.position, playerCamera.transform.forward);
+                    break;
+                case FireMode.Burst:
+                    if (mouse.leftButton.wasPressedThisFrame)
+                        weapon.TryFireBurst(playerCamera.transform);
+                    break;
+                default:
+                    if (mouse.leftButton.wasPressedThisFrame)
+                        weapon.TryFire(playerCamera.transform.position, playerCamera.transform.forward);
+                    break;
             }
 
-            if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+            var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.rKey.wasPressedThisFrame)
             {
                 weapon.TryReload();
+            }
+            if (keyboard != null && keyboard.bKey.wasPressedThisFrame)
+            {
+                weapon.CycleFireMode();
             }
         }
 

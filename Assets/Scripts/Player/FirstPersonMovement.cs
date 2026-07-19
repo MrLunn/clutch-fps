@@ -26,6 +26,18 @@ namespace ClutchFPS.Player
             enabled = IsOwner;
         }
 
+        /// Movement is owner-authoritative (ClientNetworkTransform), so spawn
+        /// placement must happen on the owning client — the server calls this.
+        [ClientRpc]
+        public void TeleportClientRpc(Vector3 position)
+        {
+            if (!IsOwner) return;
+            _controller.enabled = false;
+            transform.position = position;
+            _verticalVelocity = Vector3.zero;
+            _controller.enabled = true;
+        }
+
         private void Update()
         {
             if (!IsOwner) return;

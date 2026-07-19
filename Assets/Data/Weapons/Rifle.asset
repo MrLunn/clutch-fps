@@ -13,7 +13,12 @@ MonoBehaviour:
   m_Name: Rifle
   m_EditorClassIdentifier:
   weaponName: Rifle
-  fireMode: 1
+  availableFireModes:
+  - 2
+  - 1
+  - 0
+  burstCount: 3
+  burstShotInterval: 0.08
   damage: 20
   range: 150
   fireRate: 8

@@ -25,6 +25,19 @@ namespace ClutchFPS.Weapons
         public event System.Action AmmoChanged;
 
         private float _nextFireTime;
+        private int _fireModeIndex;
+        private bool _bursting;
+
+        public FireMode CurrentFireMode =>
+            data.availableFireModes != null && data.availableFireModes.Length > 0
+                ? data.availableFireModes[Mathf.Clamp(_fireModeIndex, 0, data.availableFireModes.Length - 1)]
+                : FireMode.Single;
+
+        public void CycleFireMode()
+        {
+            if (data.availableFireModes == null || data.availableFireModes.Length < 2) return;
+            _fireModeIndex = (_fireModeIndex + 1) % data.availableFireModes.Length;
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -44,6 +57,28 @@ namespace ClutchFPS.Weapons
 
             _nextFireTime = Time.time + 1f / Mathf.Max(data.fireRate, 0.01f);
             FireServerRpc(origin, direction.normalized);
+        }
+
+        /// Fires a full burst; aim is re-read per shot so the burst tracks the camera.
+        public void TryFireBurst(Transform aim)
+        {
+            if (!IsOwner || _bursting) return;
+            if (_isReloading.Value || _currentAmmo.Value <= 0) return;
+            if (Time.time < _nextFireTime) return;
+            StartCoroutine(BurstRoutine(aim));
+        }
+
+        private System.Collections.IEnumerator BurstRoutine(Transform aim)
+        {
+            _bursting = true;
+            for (int i = 0; i < data.burstCount; i++)
+            {
+                if (_isReloading.Value || _currentAmmo.Value <= 0) break;
+                FireServerRpc(aim.position, aim.forward);
+                yield return new WaitForSeconds(data.burstShotInterval);
+            }
+            _bursting = false;
+            _nextFireTime = Time.time + 1f / Mathf.Max(data.fireRate, 0.01f);
         }
 
         public void TryReload()
@@ -85,6 +120,17 @@ namespace ClutchFPS.Weapons
         private void ReloadServerRpc()
         {
             StartReloadServer();
+        }
+
+        /// Server-side instant refill (used by ammo pickups). Returns false if already full.
+        public bool ServerRefillAmmo()
+        {
+            if (!IsServer) return false;
+            if (_currentAmmo.Value >= data.magazineSize && !_isReloading.Value) return false;
+            CancelInvoke(nameof(FinishReloadServer));
+            _isReloading.Value = false;
+            _currentAmmo.Value = data.magazineSize;
+            return true;
         }
 
         private void StartReloadServer()
