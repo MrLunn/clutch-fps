@@ -42,6 +42,8 @@ namespace ClutchFPS.Player
             DrawCrosshair();
             DrawHitmarker();
             DrawStatus();
+            DrawKillFeed();
+            if (Keyboard.current != null && Keyboard.current.tabKey.isPressed) DrawScoreboard();
             if (_settingsOpen) DrawSettings();
         }
 
@@ -92,6 +94,49 @@ namespace ClutchFPS.Player
                     break;
             }
             GUI.color = previous;
+        }
+
+        private void DrawKillFeed()
+        {
+            EnsureStyles();
+            var entries = KillFeed.Recent();
+            _smallStyle.normal.textColor = new Color(1f, 1f, 1f, 0.9f);
+            float y = 16;
+            for (int i = entries.Count - 1; i >= 0 && i > entries.Count - 6; i--)
+            {
+                GUI.Label(new Rect(Screen.width - 320, y, 300, 20), entries[i], _smallStyle);
+                y += 20;
+            }
+        }
+
+        private void DrawScoreboard()
+        {
+            EnsureStyles();
+            _smallStyle.alignment = TextAnchor.MiddleLeft;
+            var players = Object.FindObjectsByType<PlayerRespawn>(FindObjectsSortMode.None);
+            System.Array.Sort(players, (a, b) => b.Kills.Value.CompareTo(a.Kills.Value));
+
+            float height = 60 + players.Length * 24;
+            Rect panel = new(Screen.width / 2f - 180, Screen.height * 0.2f, 360, height);
+            GUI.Box(panel, "SCOREBOARD");
+
+            _smallStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+            GUI.Label(new Rect(panel.x + 20, panel.y + 28, 200, 20), "PLAYER", _smallStyle);
+            GUI.Label(new Rect(panel.x + 220, panel.y + 28, 50, 20), "K", _smallStyle);
+            GUI.Label(new Rect(panel.x + 280, panel.y + 28, 50, 20), "D", _smallStyle);
+
+            float rowY = panel.y + 52;
+            foreach (var player in players)
+            {
+                bool isSelf = player.IsOwner;
+                _smallStyle.normal.textColor = isSelf ? new Color(0.5f, 0.85f, 1f) : Color.white;
+                GUI.Label(new Rect(panel.x + 20, rowY, 200, 20),
+                    $"Player {player.OwnerClientId}{(isSelf ? " (you)" : "")}", _smallStyle);
+                GUI.Label(new Rect(panel.x + 220, rowY, 50, 20), player.Kills.Value.ToString(), _smallStyle);
+                GUI.Label(new Rect(panel.x + 280, rowY, 50, 20), player.Deaths.Value.ToString(), _smallStyle);
+                rowY += 24;
+            }
+            _smallStyle.alignment = TextAnchor.MiddleRight;
         }
 
         private void DrawDeathScreen()

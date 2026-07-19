@@ -21,7 +21,7 @@ namespace ClutchFPS.Weapons
         }
 
         /// Re-applies holster state so only the active slot's model shows.
-        public void RefreshVisibleWeapon() => SetActiveWeapon(_activeIndex);
+        public void RefreshVisibleWeapon() => ApplyActiveWeapon(_activeIndex);
 
         /// Bitmask of loadout slots the player has picked up. Slot 0 (rifle)
         /// is owned from spawn; others come from table pickups.
@@ -61,13 +61,18 @@ namespace ClutchFPS.Weapons
             return anyRefilled;
         }
 
+        /// Owner-written so everyone renders the weapon the player actually holds.
+        private readonly NetworkVariable<int> _activeSlotSync = new(0,
+            writePerm: NetworkVariableWritePermission.Owner);
+
         public override void OnNetworkSpawn()
         {
             enabled = IsOwner;
-            // Everyone (owners and observers) starts showing slot 0, so remote
-            // players don't render both view models at once. Active-weapon sync
-            // for remote players can come later.
-            SetActiveWeapon(0);
+            _activeSlotSync.OnValueChanged += (_, slot) =>
+            {
+                if (!IsOwner) ApplyActiveWeapon(slot);
+            };
+            ApplyActiveWeapon(_activeSlotSync.Value);
         }
 
         private void Update()
@@ -119,6 +124,12 @@ namespace ClutchFPS.Weapons
         }
 
         private void SetActiveWeapon(int index)
+        {
+            if (IsSpawned && IsOwner) _activeSlotSync.Value = index;
+            ApplyActiveWeapon(index);
+        }
+
+        private void ApplyActiveWeapon(int index)
         {
             _activeIndex = index;
             for (int i = 0; i < weapons.Length; i++)

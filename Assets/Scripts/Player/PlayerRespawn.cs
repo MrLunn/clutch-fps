@@ -24,6 +24,11 @@ namespace ClutchFPS.Player
 
         public bool IsDead => _isDead.Value;
 
+        public readonly NetworkVariable<int> Kills = new(0,
+            writePerm: NetworkVariableWritePermission.Server);
+        public readonly NetworkVariable<int> Deaths = new(0,
+            writePerm: NetworkVariableWritePermission.Server);
+
         private void Awake()
         {
             _health = GetComponent<Health>();
@@ -47,7 +52,22 @@ namespace ClutchFPS.Player
         {
             if (!IsServer) return;
             _isDead.Value = true;
+            Deaths.Value++;
+            if (attackerClientId != OwnerClientId
+                && NetworkManager.ConnectedClients.TryGetValue(attackerClientId, out var attacker)
+                && attacker.PlayerObject != null
+                && attacker.PlayerObject.TryGetComponent<PlayerRespawn>(out var attackerRespawn))
+            {
+                attackerRespawn.Kills.Value++;
+            }
+            KillFeedClientRpc(attackerClientId, OwnerClientId);
             Invoke(nameof(RespawnServer), respawnDelay);
+        }
+
+        [ClientRpc]
+        private void KillFeedClientRpc(ulong attackerClientId, ulong victimClientId)
+        {
+            KillFeed.Add(attackerClientId, victimClientId);
         }
 
         private void RespawnServer()

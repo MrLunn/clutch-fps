@@ -26,6 +26,10 @@ namespace ClutchFPS.Player
         [Tooltip("Body mesh transform squashed on remote clients while crouched.")]
         [SerializeField] private Transform bodyVisual;
 
+        [Tooltip("Bullet hitboxes, resized/moved with crouch on every client (incl. server).")]
+        [SerializeField] private CapsuleCollider bodyHitbox;
+        [SerializeField] private Transform headHitbox;
+
         // Owner-written so other clients can show the crouch pose.
         private readonly NetworkVariable<bool> _crouchedSync = new(false,
             writePerm: NetworkVariableWritePermission.Owner);
@@ -48,9 +52,23 @@ namespace ClutchFPS.Player
 
         private void ApplyBodyCrouch(bool crouched)
         {
-            if (bodyVisual == null) return;
-            bodyVisual.localScale = new Vector3(0.8f, crouched ? 0.6f : 0.9f, 0.8f);
-            bodyVisual.localPosition = new Vector3(0f, crouched ? 0.6f : 0.9f, 0f);
+            if (bodyVisual != null)
+            {
+                bodyVisual.localScale = new Vector3(0.8f, crouched ? 0.6f : 0.9f, 0.8f);
+                bodyVisual.localPosition = new Vector3(0f, crouched ? 0.6f : 0.9f, 0f);
+            }
+            // Hitboxes track the pose. The sync variable fires on the server
+            // too, so the authoritative raycasts see the crouched shape.
+            if (bodyHitbox != null)
+            {
+                float height = crouched ? 1.2f : 1.8f;
+                bodyHitbox.height = height;
+                bodyHitbox.center = new Vector3(0f, height / 2f, 0f);
+            }
+            if (headHitbox != null)
+            {
+                headHitbox.localPosition = new Vector3(0f, crouched ? 1.15f : 1.62f, 0f);
+            }
         }
 
         /// Movement is owner-authoritative (ClientNetworkTransform), so spawn

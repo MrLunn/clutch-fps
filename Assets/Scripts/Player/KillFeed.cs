@@ -1,0 +1,37 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace ClutchFPS.Player
+{
+    /// Client-side rolling list of recent kills, drawn by PlayerHUD.
+    public static class KillFeed
+    {
+        private struct Entry
+        {
+            public string Text;
+            public float Time;
+        }
+
+        private const float MaxAge = 6f;
+        private static readonly List<Entry> Entries = new();
+
+        public static void Add(ulong attackerClientId, ulong victimClientId)
+        {
+            Entries.Add(new Entry
+            {
+                Text = attackerClientId == victimClientId
+                    ? $"Player {victimClientId} died"
+                    : $"Player {attackerClientId}  ▶  Player {victimClientId}",
+                Time = Time.time
+            });
+        }
+
+        public static List<string> Recent()
+        {
+            Entries.RemoveAll(e => Time.time - e.Time > MaxAge);
+            var texts = new List<string>(Entries.Count);
+            foreach (var entry in Entries) texts.Add(entry.Text);
+            return texts;
+        }
+    }
+}

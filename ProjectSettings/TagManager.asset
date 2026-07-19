@@ -23,8 +23,8 @@ TagManager:
   - 
   - Water
   - UI
-  - 
-  - 
+  - MovementOnly
+  -
   - Wall
   - First Person View
   - Character
