@@ -14,6 +14,22 @@ namespace ClutchFPS.Weapons
 
         private int _activeIndex;
 
+        /// Bitmask of loadout slots the player has picked up. Slot 0 (rifle)
+        /// is owned from spawn; others come from table pickups.
+        private readonly NetworkVariable<int> _ownedSlots = new(1,
+            writePerm: NetworkVariableWritePermission.Server);
+
+        public bool OwnsSlot(int slot) => ((_ownedSlots.Value >> slot) & 1) == 1;
+
+        /// Server-side. Returns false if the slot is invalid or already owned.
+        public bool ServerGrantSlot(int slot)
+        {
+            if (!IsServer || slot < 0 || slot >= weapons.Length) return false;
+            if (OwnsSlot(slot)) return false;
+            _ownedSlots.Value |= 1 << slot;
+            return true;
+        }
+
         /// Owner-side only: which weapon the local player currently has out.
         public Weapon ActiveWeapon =>
             weapons != null && weapons.Length > 0 ? weapons[_activeIndex] : null;
@@ -81,9 +97,9 @@ namespace ClutchFPS.Weapons
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
-            if (keyboard.digit1Key.wasPressedThisFrame && weapons.Length > 0) SetActiveWeapon(0);
-            if (keyboard.digit2Key.wasPressedThisFrame && weapons.Length > 1) SetActiveWeapon(1);
-            if (keyboard.digit3Key.wasPressedThisFrame && weapons.Length > 2) SetActiveWeapon(2);
+            if (keyboard.digit1Key.wasPressedThisFrame && weapons.Length > 0 && OwnsSlot(0)) SetActiveWeapon(0);
+            if (keyboard.digit2Key.wasPressedThisFrame && weapons.Length > 1 && OwnsSlot(1)) SetActiveWeapon(1);
+            if (keyboard.digit3Key.wasPressedThisFrame && weapons.Length > 2 && OwnsSlot(2)) SetActiveWeapon(2);
         }
 
         private void SetActiveWeapon(int index)
