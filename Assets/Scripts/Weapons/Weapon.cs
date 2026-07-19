@@ -51,6 +51,17 @@ namespace ClutchFPS.Weapons
 
         private bool OwnerIsCrouching => _movement != null && _movement.IsCrouching;
 
+        /// Holstering hides the view model rather than deactivating the
+        /// GameObject: Netcode never initializes NetworkBehaviours that spawn
+        /// on inactive objects, which silently bricked the pistol.
+        public void SetHolstered(bool holstered)
+        {
+            foreach (var renderer in GetComponentsInChildren<Renderer>(true))
+            {
+                renderer.enabled = !holstered;
+            }
+        }
+
         private void Update()
         {
             // Kickback + vibration: snap back on fire with a randomized shake

@@ -55,10 +55,10 @@ namespace ClutchFPS.Weapons
         public override void OnNetworkSpawn()
         {
             enabled = IsOwner;
-            if (IsOwner)
-            {
-                SetActiveWeapon(0);
-            }
+            // Everyone (owners and observers) starts showing slot 0, so remote
+            // players don't render both view models at once. Active-weapon sync
+            // for remote players can come later.
+            SetActiveWeapon(0);
         }
 
         private void Update()
@@ -113,7 +113,7 @@ namespace ClutchFPS.Weapons
             _activeIndex = index;
             for (int i = 0; i < weapons.Length; i++)
             {
-                weapons[i].gameObject.SetActive(i == index);
+                weapons[i].SetHolstered(i != index);
             }
         }
     }
