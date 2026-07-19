@@ -12,6 +12,21 @@ namespace ClutchFPS.Player
         [SerializeField] private float jumpHeight = 1.2f;
         [SerializeField] private float gravity = -20f;
 
+        [Header("Feel")]
+        [Tooltip("How fast you reach top speed; lower = heavier start.")]
+        [SerializeField] private float acceleration = 40f;
+        [Tooltip("How fast you stop; lower = more slide.")]
+        [SerializeField] private float deceleration = 50f;
+        [Tooltip("Fraction of accel/decel available mid-air.")]
+        [SerializeField] private float airControl = 0.35f;
+        [SerializeField] private float bobFrequency = 1.9f;
+        [SerializeField] private float bobAmplitude = 0.04f;
+        [Tooltip("Camera dip per m/s of landing impact.")]
+        [SerializeField] private float landDipScale = 0.014f;
+        [SerializeField] private float sprintFov = 67f;
+        [SerializeField] private AudioClip walkLoop;
+        [SerializeField] private AudioClip runLoop;
+
         [Header("Crouch")]
         [SerializeField] private Transform cameraPivot;
         [SerializeField] private float crouchSpeedMultiplier = 0.55f;
@@ -36,10 +51,31 @@ namespace ClutchFPS.Player
 
         private CharacterController _controller;
         private Vector3 _verticalVelocity;
+        private Vector3 _horizontalVelocity;
+        private float _pivotBaseY;
+        private float _bobTime;
+        private float _bobOffset;
+        private float _landDip;
+        private bool _wasGrounded = true;
+        private float _lastFallSpeed;
+        private Camera _camera;
+        private float _baseFov = 60f;
+        private AudioSource _footstepSource;
 
         private void Awake()
         {
             _controller = GetComponent<CharacterController>();
+            _pivotBaseY = standCameraY;
+            if (cameraPivot != null && cameraPivot.TryGetComponent<Camera>(out var cam))
+            {
+                _camera = cam;
+                _baseFov = cam.fieldOfView;
+            }
+            _footstepSource = gameObject.AddComponent<AudioSource>();
+            _footstepSource.playOnAwake = false;
+            _footstepSource.loop = true;
+            _footstepSource.spatialBlend = 0f;
+            _footstepSource.volume = 0.3f;
         }
 
         public override void OnNetworkSpawn()
@@ -80,6 +116,7 @@ namespace ClutchFPS.Player
             _controller.enabled = false;
             transform.position = position;
             _verticalVelocity = Vector3.zero;
+            _horizontalVelocity = Vector3.zero;
             _controller.enabled = true;
         }
 
@@ -102,6 +139,15 @@ namespace ClutchFPS.Player
             }
 
             bool isGrounded = _controller.isGrounded;
+            if (!isGrounded && _verticalVelocity.y < 0f)
+            {
+                _lastFallSpeed = -_verticalVelocity.y;
+            }
+            if (isGrounded && !_wasGrounded && _lastFallSpeed > 3f)
+            {
+                // Landing impact: dip the camera proportionally to fall speed.
+                _landDip = Mathf.Min(_lastFallSpeed * landDipScale, 0.16f);
+            }
             if (isGrounded && _verticalVelocity.y < 0f)
             {
                 _verticalVelocity.y = -2f;
@@ -114,17 +160,74 @@ namespace ClutchFPS.Player
             if (_crouchedSync.Value != IsCrouching) _crouchedSync.Value = IsCrouching;
             _controller.height = IsCrouching ? crouchHeight : standHeight;
             _controller.center = new Vector3(0f, _controller.height / 2f, 0f);
-            if (cameraPivot != null)
-            {
-                float targetY = IsCrouching ? crouchCameraY : standCameraY;
-                Vector3 pivotPosition = cameraPivot.localPosition;
-                pivotPosition.y = Mathf.MoveTowards(pivotPosition.y, targetY, crouchTransitionSpeed * Time.deltaTime);
-                cameraPivot.localPosition = pivotPosition;
-            }
 
             bool sprinting = keyboard != null && keyboard.leftShiftKey.isPressed && !IsCrouching;
             float speed = sprinting ? sprintSpeed : walkSpeed;
             if (IsCrouching) speed *= crouchSpeedMultiplier;
+
+            // Momentum: ease toward the target velocity instead of snapping,
+            // with reduced control mid-air.
+            Vector3 targetVelocity = moveDirection * speed;
+            float rate = targetVelocity.sqrMagnitude > _horizontalVelocity.sqrMagnitude
+                ? acceleration : deceleration;
+            if (!isGrounded) rate *= airControl;
+            _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, targetVelocity, rate * Time.deltaTime);
+            float planarSpeed = _horizontalVelocity.magnitude;
+
+            // Headbob while moving on the ground.
+            if (isGrounded && planarSpeed > 0.5f)
+            {
+                _bobTime += Time.deltaTime * bobFrequency * (planarSpeed / walkSpeed) * Mathf.PI * 2f;
+                float targetBob = Mathf.Sin(_bobTime) * bobAmplitude * Mathf.Clamp01(planarSpeed / walkSpeed);
+                _bobOffset = Mathf.Lerp(_bobOffset, targetBob, 12f * Time.deltaTime);
+            }
+            else
+            {
+                _bobOffset = Mathf.Lerp(_bobOffset, 0f, 8f * Time.deltaTime);
+            }
+            _landDip = Mathf.Lerp(_landDip, 0f, 9f * Time.deltaTime);
+
+            // Camera pivot: smoothed crouch base + bob - landing dip.
+            if (cameraPivot != null)
+            {
+                float targetY = IsCrouching ? crouchCameraY : standCameraY;
+                _pivotBaseY = Mathf.MoveTowards(_pivotBaseY, targetY, crouchTransitionSpeed * Time.deltaTime);
+                Vector3 pivotPosition = cameraPivot.localPosition;
+                pivotPosition.y = _pivotBaseY + _bobOffset - _landDip;
+                cameraPivot.localPosition = pivotPosition;
+            }
+
+            // Sprint FOV kick.
+            if (_camera != null)
+            {
+                float targetFov = sprinting && planarSpeed > walkSpeed * 0.9f ? sprintFov : _baseFov;
+                _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, 8f * Time.deltaTime);
+            }
+
+            // Footstep loop: walk vs sprint clip, quieter while crouched.
+            if (_footstepSource != null)
+            {
+                bool moving = isGrounded && planarSpeed > 0.5f;
+                AudioClip wanted = sprinting ? runLoop : walkLoop;
+                if (moving && wanted != null)
+                {
+                    if (_footstepSource.clip != wanted)
+                    {
+                        _footstepSource.clip = wanted;
+                        _footstepSource.Play();
+                    }
+                    else if (!_footstepSource.isPlaying)
+                    {
+                        _footstepSource.Play();
+                    }
+                    _footstepSource.pitch = IsCrouching ? 0.8f : 1f;
+                    _footstepSource.volume = IsCrouching ? 0.12f : 0.3f;
+                }
+                else if (_footstepSource.isPlaying)
+                {
+                    _footstepSource.Stop();
+                }
+            }
 
             if (isGrounded && keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
             {
@@ -133,8 +236,9 @@ namespace ClutchFPS.Player
 
             _verticalVelocity.y += gravity * Time.deltaTime;
 
-            Vector3 motion = moveDirection * speed + Vector3.up * _verticalVelocity.y;
+            Vector3 motion = _horizontalVelocity + Vector3.up * _verticalVelocity.y;
             _controller.Move(motion * Time.deltaTime);
+            _wasGrounded = isGrounded;
         }
     }
 }

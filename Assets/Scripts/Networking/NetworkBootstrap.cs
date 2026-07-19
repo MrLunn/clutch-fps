@@ -15,6 +15,7 @@ namespace ClutchFPS.Networking
         private void Awake()
         {
             _name = Player.PlayerIdentity.LocalName;
+            Player.DisplaySettings.ApplySavedIfAny();
         }
 
         private static UnityTransport GetTransport(NetworkManager networkManager)
@@ -51,7 +52,7 @@ namespace ClutchFPS.Networking
             // Centered so the buttons stay visible regardless of game-view
             // zoom/aspect cropping at the screen edges.
             float width = 240;
-            float height = 270;
+            float height = 430;
             GUILayout.BeginArea(new Rect(
                 (Screen.width - width) / 2f, (Screen.height - height) / 2f, width, height));
             GUILayout.Label("CLUTCH FPS");
@@ -84,6 +85,9 @@ namespace ClutchFPS.Networking
                 GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
                 networkManager.StartServer();
             }
+
+            GUILayout.Space(10);
+            Player.DisplaySettings.DrawControls();
             GUILayout.EndArea();
         }
     }

@@ -104,6 +104,8 @@ MonoBehaviour:
   bodyVisual: {fileID: 5000002}
   bodyHitbox: {fileID: 5100004}
   headHitbox: {fileID: 5200002}
+  walkLoop: {fileID: 8300000, guid: 74abbbf1b1724e34b894191db38e10a0, type: 3}
+  runLoop: {fileID: 8300000, guid: d2add02f58e61e640aba3ae9110591cb, type: 3}
 --- !u!114 &1000012
 MonoBehaviour:
   m_ObjectHideFlags: 0

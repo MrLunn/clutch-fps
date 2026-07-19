@@ -331,8 +331,8 @@ namespace ClutchFPS.Player
 
         private void DrawSettings()
         {
-            Rect panel = new(Screen.width / 2f - 150, Screen.height / 2f - 110, 300, 220);
-            GUI.Box(panel, "Crosshair Settings  (F1 to close)");
+            Rect panel = new(Screen.width / 2f - 150, Screen.height / 2f - 190, 300, 380);
+            GUI.Box(panel, "Settings  (F1 to close)");
 
             GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 30, panel.width - 30, panel.height - 45));
 
@@ -356,6 +356,9 @@ namespace ClutchFPS.Player
                 GUI.backgroundColor = prev;
             }
             GUILayout.EndHorizontal();
+
+            GUILayout.Space(10);
+            DisplaySettings.DrawControls();
 
             GUILayout.EndArea();
         }
