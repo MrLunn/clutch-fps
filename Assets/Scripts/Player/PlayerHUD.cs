@@ -380,7 +380,7 @@ namespace ClutchFPS.Player
 
         private void DrawSettings()
         {
-            Rect panel = new(Screen.width / 2f - 150, Screen.height / 2f - 190, 300, 380);
+            Rect panel = new(Screen.width / 2f - 150, Screen.height / 2f - 240, 300, 480);
             GUI.Box(panel, "Settings  (F1 to close)");
 
             GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 30, panel.width - 30, panel.height - 45));
@@ -405,6 +405,11 @@ namespace ClutchFPS.Player
                 GUI.backgroundColor = prev;
             }
             GUILayout.EndHorizontal();
+
+            GUILayout.Space(10);
+            GUILayout.Label($"Mouse sensitivity: {MouseSettings.Sensitivity:0.00}");
+            MouseSettings.Sensitivity = GUILayout.HorizontalSlider(MouseSettings.Sensitivity, 0.02f, 0.5f);
+            MouseSettings.InvertY = GUILayout.Toggle(MouseSettings.InvertY, " Invert Y axis");
 
             GUILayout.Space(10);
             DisplaySettings.DrawControls();

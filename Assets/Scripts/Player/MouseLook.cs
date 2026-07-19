@@ -51,8 +51,10 @@ namespace ClutchFPS.Player
 
             Vector2 delta = Mouse.current?.delta.ReadValue() ?? Vector2.zero;
 
-            float yaw = delta.x * sensitivity;
-            _pitch = Mathf.Clamp(_pitch - delta.y * sensitivity, minPitch, maxPitch);
+            float sens = MouseSettings.Sensitivity;
+            float yaw = delta.x * sens;
+            float pitchDelta = delta.y * sens * (MouseSettings.InvertY ? -1f : 1f);
+            _pitch = Mathf.Clamp(_pitch - pitchDelta, minPitch, maxPitch);
 
             transform.Rotate(Vector3.up * yaw);
             if (cameraPivot != null)

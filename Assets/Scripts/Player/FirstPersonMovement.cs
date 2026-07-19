@@ -49,18 +49,25 @@ namespace ClutchFPS.Player
             }
         }
 
+        // Movement is game balance, not player preference: tuning persistence
+        // exists only in the editor/dev builds so release players can't
+        // override it (not even by editing PlayerPrefs in the registry).
         public void SaveTuning()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             var values = TuningValues;
             for (int i = 0; i < TuningKeys.Length; i++) PlayerPrefs.SetFloat(TuningKeys[i], values[i]);
+#endif
         }
 
         public void LoadTuning()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (!PlayerPrefs.HasKey(TuningKeys[0])) return;
             var values = TuningValues;
             for (int i = 0; i < TuningKeys.Length; i++) values[i] = PlayerPrefs.GetFloat(TuningKeys[i], values[i]);
             TuningValues = values;
+#endif
         }
 
         public void ResetTuning()

@@ -41,4 +41,20 @@ namespace ClutchFPS.Player
 
         public static Color Color => Colors[ColorIndex];
     }
+
+    /// Player-facing mouse options, persisted via PlayerPrefs.
+    public static class MouseSettings
+    {
+        public static float Sensitivity
+        {
+            get => PlayerPrefs.GetFloat("mouse_sensitivity", 0.12f);
+            set => PlayerPrefs.SetFloat("mouse_sensitivity", Mathf.Clamp(value, 0.02f, 0.5f));
+        }
+
+        public static bool InvertY
+        {
+            get => PlayerPrefs.GetInt("mouse_invert_y", 0) == 1;
+            set => PlayerPrefs.SetInt("mouse_invert_y", value ? 1 : 0);
+        }
+    }
 }
