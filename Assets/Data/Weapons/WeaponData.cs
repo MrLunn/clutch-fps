@@ -75,6 +75,8 @@ namespace ClutchFPS.Weapons
         public AnimationClip reloadAnimation;
 
         [Header("VFX (optional; falls back to built-in)")]
+        [Tooltip("Material for tracer lines. Must be an asset: runtime Shader.Find is stripped in builds.")]
+        public Material tracerMaterial;
         public GameObject muzzleFlashPrefab;
         public GameObject fleshImpactPrefab;
         public GameObject worldImpactPrefab;

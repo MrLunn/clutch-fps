@@ -41,6 +41,7 @@ MonoBehaviour:
   fireVolume: 0.7
   fireAnimation: {fileID: 7400010, guid: bfda376b0f658a748870ea8f7c2c7c03, type: 3}
   reloadAnimation: {fileID: 7400002, guid: bfda376b0f658a748870ea8f7c2c7c03, type: 3}
+  tracerMaterial: {fileID: 2100000, guid: c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5, type: 2}
   muzzleFlashPrefab: {fileID: 100100000, guid: 30b4cc2728d8cec499fad63ba93785a4, type: 3}
   fleshImpactPrefab: {fileID: 100100000, guid: 3b1513bcb86426b4795879be6a128ed7, type: 3}
   worldImpactPrefab: {fileID: 100100000, guid: f8860a5092fd6d143a7b3f075e204e6b, type: 3}

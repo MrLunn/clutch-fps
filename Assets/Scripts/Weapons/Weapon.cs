@@ -318,12 +318,18 @@ namespace ClutchFPS.Weapons
 
         private static Material _tracerMaterial;
 
-        private static void SpawnTracer(Vector3 from, Vector3 to)
+        private void SpawnTracer(Vector3 from, Vector3 to)
         {
+            if (_tracerMaterial == null && data.tracerMaterial != null)
+            {
+                _tracerMaterial = data.tracerMaterial;
+            }
             if (_tracerMaterial == null)
             {
+                // Editor-only fallback; these shaders are stripped from builds.
                 var shader = Shader.Find("Universal Render Pipeline/Unlit");
                 if (shader == null) shader = Shader.Find("Unlit/Color");
+                if (shader == null) return;
                 _tracerMaterial = new Material(shader) { color = new Color(1f, 0.85f, 0.3f) };
             }
 
@@ -345,8 +351,10 @@ namespace ClutchFPS.Weapons
         {
             if (_fleshImpactMaterial == null)
             {
+                // Editor-only fallback; builds use the WarFX prefabs instead.
                 var shader = Shader.Find("Universal Render Pipeline/Unlit");
                 if (shader == null) shader = Shader.Find("Unlit/Color");
+                if (shader == null) return;
                 _fleshImpactMaterial = new Material(shader) { color = new Color(0.65f, 0.05f, 0.05f) };
                 _worldImpactMaterial = new Material(shader) { color = new Color(0.7f, 0.68f, 0.6f) };
             }
