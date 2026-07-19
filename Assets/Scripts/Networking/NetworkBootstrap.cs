@@ -34,10 +34,16 @@ namespace ClutchFPS.Networking
 
             if (networkManager.IsClient || networkManager.IsServer) return;
 
-            GUILayout.BeginArea(new Rect(10, 10, 220, 120));
-            if (GUILayout.Button("Host")) networkManager.StartHost();
-            if (GUILayout.Button("Client")) networkManager.StartClient();
-            if (GUILayout.Button("Server")) networkManager.StartServer();
+            // Centered so the buttons stay visible regardless of game-view
+            // zoom/aspect cropping at the screen edges.
+            float width = 240;
+            float height = 160;
+            GUILayout.BeginArea(new Rect(
+                (Screen.width - width) / 2f, (Screen.height - height) / 2f, width, height));
+            GUILayout.Label("CLUTCH FPS");
+            if (GUILayout.Button("Host", GUILayout.Height(36))) networkManager.StartHost();
+            if (GUILayout.Button("Client", GUILayout.Height(36))) networkManager.StartClient();
+            if (GUILayout.Button("Server", GUILayout.Height(36))) networkManager.StartServer();
             GUILayout.EndArea();
         }
     }
