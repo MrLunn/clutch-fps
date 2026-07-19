@@ -122,12 +122,14 @@ namespace ClutchFPS.Weapons
             Vector3 spreadDirection = ApplySpread(direction, data.spreadDegrees);
             Vector3 hitPoint = origin + spreadDirection * data.range;
 
+            byte hitType = 0; // 0 = air, 1 = world, 2 = flesh
             if (Physics.Raycast(origin, spreadDirection, out RaycastHit hit, data.range, hittableMask))
             {
                 hitPoint = hit.point;
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 if (damageable != null)
                 {
+                    hitType = 2;
                     float damage = data.damage;
                     if (hit.collider.TryGetComponent<HitZone>(out var zone))
                     {
@@ -136,9 +138,13 @@ namespace ClutchFPS.Weapons
                     ulong attackerId = rpcParams.Receive.SenderClientId;
                     damageable.TakeDamage(damage, attackerId);
                 }
+                else
+                {
+                    hitType = 1;
+                }
             }
 
-            HitEffectClientRpc(origin, hitPoint);
+            HitEffectClientRpc(origin, hitPoint, hitType);
 
             if (_currentAmmo.Value <= 0)
             {
@@ -177,7 +183,7 @@ namespace ClutchFPS.Weapons
         }
 
         [ClientRpc]
-        private void HitEffectClientRpc(Vector3 origin, Vector3 hitPoint)
+        private void HitEffectClientRpc(Vector3 origin, Vector3 hitPoint, byte hitType)
         {
             // Tracer starts at this weapon's muzzle so it reads correctly from
             // every perspective, even though the actual ray came from the camera.
@@ -185,6 +191,15 @@ namespace ClutchFPS.Weapons
             SpawnTracer(muzzle, hitPoint);
             SpawnMuzzleFlash(muzzle);
             PlayShotSound(muzzle);
+
+            if (hitType > 0)
+            {
+                SpawnImpact(hitPoint, flesh: hitType == 2);
+            }
+            if (IsOwner && hitType == 2)
+            {
+                HitFeedback.RegisterHit();
+            }
 
             _kick = 1f;
             if (IsOwner && _mouseLook != null)
@@ -213,6 +228,47 @@ namespace ClutchFPS.Weapons
             line.endWidth = 0.005f;
             line.material = _tracerMaterial;
             Destroy(tracer, 0.07f);
+        }
+
+        private static Material _fleshImpactMaterial;
+        private static Material _worldImpactMaterial;
+
+        private static void SpawnImpact(Vector3 position, bool flesh)
+        {
+            if (_fleshImpactMaterial == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Unlit/Color");
+                _fleshImpactMaterial = new Material(shader) { color = new Color(0.65f, 0.05f, 0.05f) };
+                _worldImpactMaterial = new Material(shader) { color = new Color(0.7f, 0.68f, 0.6f) };
+            }
+
+            var go = new GameObject("Impact");
+            go.transform.position = position;
+            var ps = go.AddComponent<ParticleSystem>();
+
+            var main = ps.main;
+            main.duration = 0.2f;
+            main.loop = false;
+            main.startLifetime = 0.3f;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1.5f, 3.5f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.02f, 0.06f);
+            main.gravityModifier = 1.5f;
+            main.maxParticles = 24;
+
+            var emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 14) });
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.03f;
+
+            go.GetComponent<ParticleSystemRenderer>().material =
+                flesh ? _fleshImpactMaterial : _worldImpactMaterial;
+
+            ps.Play();
+            Destroy(go, 1f);
         }
 
         private static void SpawnMuzzleFlash(Vector3 position)

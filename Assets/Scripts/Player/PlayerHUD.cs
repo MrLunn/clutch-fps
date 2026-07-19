@@ -32,6 +32,7 @@ namespace ClutchFPS.Player
             if (!IsOwner) return;
 
             DrawCrosshair();
+            DrawHitmarker();
             DrawStatus();
             if (_settingsOpen) DrawSettings();
         }
@@ -83,6 +84,27 @@ namespace ClutchFPS.Player
                     break;
             }
             GUI.color = previous;
+        }
+
+        private void DrawHitmarker()
+        {
+            const float showDuration = 0.15f;
+            if (Time.time - HitFeedback.LastHitTime > showDuration) return;
+
+            float cx = Screen.width / 2f;
+            float cy = Screen.height / 2f;
+            var matrix = GUI.matrix;
+            var previous = GUI.color;
+            GUIUtility.RotateAroundPivot(45f, new Vector2(cx, cy));
+            GUI.color = new Color(1f, 0.25f, 0.2f);
+            const float len = 9f;
+            const float gap = 4f;
+            GUI.DrawTexture(new Rect(cx - len - gap, cy - 1, len, 2), Pixel);
+            GUI.DrawTexture(new Rect(cx + gap, cy - 1, len, 2), Pixel);
+            GUI.DrawTexture(new Rect(cx - 1, cy - len - gap, 2, len), Pixel);
+            GUI.DrawTexture(new Rect(cx - 1, cy + gap, 2, len), Pixel);
+            GUI.color = previous;
+            GUI.matrix = matrix;
         }
 
         private void DrawStatus()

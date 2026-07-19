@@ -24,4 +24,4 @@ MonoBehaviour:
   fireRate: 8
   magazineSize: 30
   reloadTime: 1.8
-  spreadDegrees: 1.5
+  spreadDegrees: 0.25
