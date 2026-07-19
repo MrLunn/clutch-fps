@@ -9,6 +9,8 @@ namespace ClutchFPS.Environment
     {
         [SerializeField] private int slotIndex = 1;
 
+        public override bool RequiresInteract => true;
+
         protected override bool TryApplyTo(PlayerWeaponController player)
         {
             return player.ServerGrantSlot(slotIndex);

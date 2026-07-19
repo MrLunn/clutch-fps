@@ -73,6 +73,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4460986e6d4d324699d9e25ee3f8066, type: 3}
   m_Name:
   m_EditorClassIdentifier:
+  displayName: Ammo
   visual: {fileID: 2000000}
   respawnSeconds: 10
   spinDegreesPerSecond: 90

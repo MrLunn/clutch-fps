@@ -4,18 +4,23 @@ using UnityEngine;
 
 namespace ClutchFPS.Environment
 {
-    /// Base for world loot: server-authoritative trigger pickup with respawn.
-    /// Subclasses decide what the player actually receives. This is the seed of
-    /// the loot system — weapon/attachment pickups will follow the same pattern.
+    /// Base for world loot: server-authoritative pickup with respawn.
+    /// Auto pickups apply on walk-over; interact pickups (RequiresInteract)
+    /// wait for the player to press E via PlayerInteractor.
     [RequireComponent(typeof(Collider))]
     public abstract class LootPickup : NetworkBehaviour
     {
+        [SerializeField] private string displayName = "Item";
         [SerializeField] private GameObject visual;
         [SerializeField] private float respawnSeconds = 10f;
         [SerializeField] private float spinDegreesPerSecond = 90f;
 
         private readonly NetworkVariable<bool> _available = new(true,
             writePerm: NetworkVariableWritePermission.Server);
+
+        public string DisplayName => displayName;
+        public bool IsAvailable => _available.Value;
+        public virtual bool RequiresInteract => false;
 
         public override void OnNetworkSpawn()
         {
@@ -38,12 +43,24 @@ namespace ClutchFPS.Environment
 
         private void OnTriggerEnter(Collider other)
         {
-            if (!IsServer || !_available.Value) return;
+            if (!IsServer || RequiresInteract || !_available.Value) return;
             if (!other.TryGetComponent<PlayerWeaponController>(out var player)) return;
-            if (!TryApplyTo(player)) return;
+            ApplyAndConsume(player);
+        }
 
+        /// Server-side entry point for E-press interaction.
+        public bool ServerTryPickup(PlayerWeaponController player)
+        {
+            if (!IsServer || !_available.Value) return false;
+            return ApplyAndConsume(player);
+        }
+
+        private bool ApplyAndConsume(PlayerWeaponController player)
+        {
+            if (!TryApplyTo(player)) return false;
             _available.Value = false;
             Invoke(nameof(RespawnServer), respawnSeconds);
+            return true;
         }
 
         private void RespawnServer()
@@ -52,7 +69,7 @@ namespace ClutchFPS.Environment
         }
 
         /// Server-side. Return false if the pickup should not be consumed
-        /// (e.g. ammo already full).
+        /// (e.g. ammo already full, weapon slot already owned).
         protected abstract bool TryApplyTo(PlayerWeaponController player);
     }
 }

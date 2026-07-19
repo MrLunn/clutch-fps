@@ -12,6 +12,7 @@ namespace ClutchFPS.Player
     {
         [SerializeField] private PlayerWeaponController weaponController;
         [SerializeField] private Health health;
+        [SerializeField] private PlayerInteractor interactor;
 
         private bool _settingsOpen;
         private static Texture2D _pixel;
@@ -107,21 +108,70 @@ namespace ClutchFPS.Player
             GUI.matrix = matrix;
         }
 
+        private static GUIStyle _nameStyle;
+        private static GUIStyle _ammoStyle;
+        private static GUIStyle _smallStyle;
+        private static GUIStyle _promptStyle;
+
+        private static void EnsureStyles()
+        {
+            if (_nameStyle != null) return;
+            _nameStyle = new GUIStyle { fontSize = 20, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
+            _ammoStyle = new GUIStyle { fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight };
+            _smallStyle = new GUIStyle { fontSize = 13, alignment = TextAnchor.MiddleRight };
+            _promptStyle = new GUIStyle { fontSize = 18, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+        }
+
         private void DrawStatus()
         {
+            EnsureStyles();
+
             if (health != null)
             {
                 GUI.Box(new Rect(20, Screen.height - 50, 160, 30),
                     $"HP  {Mathf.CeilToInt(health.CurrentHealth)} / {Mathf.CeilToInt(health.MaxHealth)}");
             }
 
+            // BF-style loadout panel, bottom-right: weapon name, big ammo count,
+            // fire mode, and the slot strip showing what you're carrying.
             var weapon = weaponController != null ? weaponController.ActiveWeapon : null;
             if (weapon != null)
             {
-                string ammoText = weapon.IsReloading
-                    ? $"{weapon.Data.weaponName} [{weapon.CurrentFireMode}]  Reloading..."
-                    : $"{weapon.Data.weaponName} [{weapon.CurrentFireMode}]  {weapon.CurrentAmmo} / {weapon.Data.magazineSize}";
-                GUI.Box(new Rect(Screen.width - 240, Screen.height - 50, 220, 30), ammoText);
+                float right = Screen.width - 24;
+                float y = Screen.height - 108;
+
+                _nameStyle.normal.textColor = Color.white;
+                GUI.Label(new Rect(right - 280, y, 280, 26), weapon.Data.weaponName.ToUpper(), _nameStyle);
+
+                _ammoStyle.normal.textColor = weapon.CurrentAmmo == 0 ? new Color(1f, 0.35f, 0.3f) : Color.white;
+                string ammoText = weapon.IsReloading ? "RELOADING" : $"{weapon.CurrentAmmo}  |  {weapon.Data.magazineSize}";
+                GUI.Label(new Rect(right - 280, y + 26, 280, 32), ammoText, _ammoStyle);
+
+                _smallStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
+                GUI.Label(new Rect(right - 280, y + 58, 280, 18), weapon.CurrentFireMode.ToString().ToUpper(), _smallStyle);
+
+                // Slot strip: dim unowned, highlight active.
+                string strip = "";
+                for (int i = 0; i < weaponController.SlotCount; i++)
+                {
+                    var slotWeapon = weaponController.WeaponAt(i);
+                    if (slotWeapon == null) continue;
+                    string label = $"{i + 1} {slotWeapon.Data.weaponName.ToUpper()}";
+                    if (!weaponController.OwnsSlot(i)) label = $"({label})";
+                    else if (i == weaponController.ActiveIndex) label = $"[{label}]";
+                    strip += (strip.Length > 0 ? "    " : "") + label;
+                }
+                _smallStyle.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
+                GUI.Label(new Rect(right - 380, y + 78, 380, 18), strip, _smallStyle);
+            }
+
+            // Pickup prompt, lower-center, when standing at an interactable.
+            var nearby = interactor != null ? interactor.Nearby : null;
+            if (nearby != null)
+            {
+                _promptStyle.normal.textColor = Color.white;
+                GUI.Label(new Rect(Screen.width / 2f - 200, Screen.height * 0.62f, 400, 30),
+                    $"[E]  Pick up {nearby.DisplayName}", _promptStyle);
             }
         }
 

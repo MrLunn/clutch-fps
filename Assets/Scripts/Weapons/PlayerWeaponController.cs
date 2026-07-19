@@ -34,6 +34,12 @@ namespace ClutchFPS.Weapons
         public Weapon ActiveWeapon =>
             weapons != null && weapons.Length > 0 ? weapons[_activeIndex] : null;
 
+        public int ActiveIndex => _activeIndex;
+        public int SlotCount => weapons != null ? weapons.Length : 0;
+
+        public Weapon WeaponAt(int slot) =>
+            weapons != null && slot >= 0 && slot < weapons.Length ? weapons[slot] : null;
+
         /// Server-side: refill every carried weapon. Returns true if any needed ammo.
         public bool ServerRefillAllAmmo()
         {

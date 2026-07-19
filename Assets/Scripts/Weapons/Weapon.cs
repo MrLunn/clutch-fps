@@ -30,6 +30,7 @@ namespace ClutchFPS.Weapons
         private bool _bursting;
 
         private Vector3 _restPosition;
+        private Quaternion _restRotation;
         private float _kick;
         private MouseLook _mouseLook;
 
@@ -43,6 +44,7 @@ namespace ClutchFPS.Weapons
         private void Awake()
         {
             _restPosition = transform.localPosition;
+            _restRotation = transform.localRotation;
             _mouseLook = GetComponentInParent<MouseLook>();
             _movement = GetComponentInParent<FirstPersonMovement>();
         }
@@ -51,9 +53,18 @@ namespace ClutchFPS.Weapons
 
         private void Update()
         {
-            // Kickback animation: snap back on fire, ease forward to rest.
+            // Kickback + vibration: snap back on fire with a randomized shake
+            // that damps out as the weapon eases forward to rest.
             _kick = Mathf.MoveTowards(_kick, 0f, data.kickbackRecoverSpeed * Time.deltaTime);
-            transform.localPosition = _restPosition - Vector3.forward * (_kick * data.kickbackDistance);
+            float jitter = _kick * 0.006f;
+            transform.localPosition = _restPosition
+                - Vector3.forward * (_kick * data.kickbackDistance)
+                + new Vector3(Random.Range(-jitter, jitter), Random.Range(-jitter, jitter), 0f);
+            float muzzleRise = 30f * data.kickbackDistance;
+            transform.localRotation = _restRotation * Quaternion.Euler(
+                -muzzleRise * _kick + Random.Range(-0.8f, 0.8f) * _kick,
+                Random.Range(-0.8f, 0.8f) * _kick,
+                Random.Range(-1.5f, 1.5f) * _kick);
 
             float recover = data.bloomRecoverPerSecond * Time.deltaTime;
             _serverBloom = Mathf.MoveTowards(_serverBloom, 0f, recover);
