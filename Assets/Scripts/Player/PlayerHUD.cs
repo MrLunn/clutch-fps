@@ -32,12 +32,16 @@ namespace ClutchFPS.Player
                 _tuningOpen = false;
                 ApplyCursorState();
             }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // Tuning is a dev tool only: stripped from release builds so
+            // players can't touch weapon balance.
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
                 _tuningOpen = !_tuningOpen;
                 _settingsOpen = false;
                 ApplyCursorState();
             }
+#endif
         }
 
         private void ApplyCursorState()
