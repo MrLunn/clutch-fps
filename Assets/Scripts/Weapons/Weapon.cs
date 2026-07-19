@@ -288,7 +288,8 @@ namespace ClutchFPS.Weapons
                 if (impactPrefab != null)
                 {
                     var impact = Instantiate(impactPrefab, hitPoint, Quaternion.LookRotation(hitNormal));
-                    Destroy(impact, data.vfxLifetime);
+                    // World hits keep their bullet-hole mark around; flesh bursts are brief.
+                    Destroy(impact, hitType == 2 ? data.vfxLifetime : data.impactLifetime);
                 }
                 else
                 {

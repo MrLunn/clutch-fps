@@ -80,5 +80,8 @@ namespace ClutchFPS.Weapons
         public GameObject worldImpactPrefab;
         [Tooltip("Seconds before a spawned VFX instance is destroyed.")]
         public float vfxLifetime = 2f;
+
+        [Tooltip("Seconds bullet-hole impact marks linger on surfaces.")]
+        public float impactLifetime = 10f;
     }
 }
