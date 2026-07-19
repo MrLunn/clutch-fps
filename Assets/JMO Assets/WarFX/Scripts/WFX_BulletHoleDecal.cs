@@ -25,10 +25,15 @@ public class WFX_BulletHoleDecal : MonoBehaviour
 	private float fadeout;
 	private Color color;
 	private float orgAlpha;
-	
+	private string colorProperty = "_TintColor";
+
 	void Awake()
 	{
-		color = this.GetComponent<Renderer>().material.GetColor("_TintColor");
+		// URP-converted materials use _BaseColor instead of _TintColor.
+		var material = this.GetComponent<Renderer>().material;
+		if (!material.HasProperty(colorProperty))
+			colorProperty = "_BaseColor";
+		color = material.HasProperty(colorProperty) ? material.GetColor(colorProperty) : Color.white;
 		orgAlpha = color.a;
 	}
 	
@@ -55,7 +60,7 @@ public class WFX_BulletHoleDecal : MonoBehaviour
 		life = lifetime;
 		fadeout = life * (fadeoutpercent/100f);
 		color.a = orgAlpha;
-		this.GetComponent<Renderer>().material.SetColor("_TintColor", color);
+		this.GetComponent<Renderer>().material.SetColor(colorProperty, color);
 		StopAllCoroutines();
 		StartCoroutine("holeUpdate");
 	}
@@ -68,7 +73,7 @@ public class WFX_BulletHoleDecal : MonoBehaviour
 			if(life <= fadeout)
 			{
 				color.a = Mathf.Lerp(0f, orgAlpha, life/fadeout);
-				this.GetComponent<Renderer>().material.SetColor("_TintColor", color);
+				this.GetComponent<Renderer>().material.SetColor(colorProperty, color);
 			}
 			
 			yield return null;
