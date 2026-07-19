@@ -23,6 +23,13 @@ namespace ClutchFPS.Player
 
         public bool IsCrouching { get; private set; }
 
+        [Tooltip("Body mesh transform squashed on remote clients while crouched.")]
+        [SerializeField] private Transform bodyVisual;
+
+        // Owner-written so other clients can show the crouch pose.
+        private readonly NetworkVariable<bool> _crouchedSync = new(false,
+            writePerm: NetworkVariableWritePermission.Owner);
+
         private CharacterController _controller;
         private Vector3 _verticalVelocity;
 
@@ -35,6 +42,15 @@ namespace ClutchFPS.Player
         {
             // Only the owning client drives its own movement input.
             enabled = IsOwner;
+            _crouchedSync.OnValueChanged += (_, crouched) => ApplyBodyCrouch(crouched);
+            ApplyBodyCrouch(_crouchedSync.Value);
+        }
+
+        private void ApplyBodyCrouch(bool crouched)
+        {
+            if (bodyVisual == null) return;
+            bodyVisual.localScale = new Vector3(0.8f, crouched ? 0.6f : 0.9f, 0.8f);
+            bodyVisual.localPosition = new Vector3(0f, crouched ? 0.6f : 0.9f, 0f);
         }
 
         /// Movement is owner-authoritative (ClientNetworkTransform), so spawn
@@ -77,6 +93,7 @@ namespace ClutchFPS.Player
             moveDirection = Vector3.ClampMagnitude(moveDirection, 1f);
 
             IsCrouching = keyboard != null && keyboard.leftCtrlKey.isPressed;
+            if (_crouchedSync.Value != IsCrouching) _crouchedSync.Value = IsCrouching;
             _controller.height = IsCrouching ? crouchHeight : standHeight;
             _controller.center = new Vector3(0f, _controller.height / 2f, 0f);
             if (cameraPivot != null)

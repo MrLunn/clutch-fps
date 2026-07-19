@@ -40,6 +40,8 @@ namespace ClutchFPS.Weapons
         private float _localBloom;
 
         private FirstPersonMovement _movement;
+        private Animator _modelAnimator;
+        private UnityEngine.Playables.PlayableGraph _animationGraph;
 
         private void Awake()
         {
@@ -47,6 +49,26 @@ namespace ClutchFPS.Weapons
             _restRotation = transform.localRotation;
             _mouseLook = GetComponentInParent<MouseLook>();
             _movement = GetComponentInParent<FirstPersonMovement>();
+            _modelAnimator = GetComponentInChildren<Animator>(true);
+        }
+
+        private void OnDestroy()
+        {
+            if (_animationGraph.IsValid()) _animationGraph.Destroy();
+        }
+
+        /// Plays a clip from the weapon model's FBX (bolt/slide/mag motion)
+        /// directly via Playables — no animator controller asset needed.
+        private void PlayModelAnimation(AnimationClip clip)
+        {
+            if (clip == null || _modelAnimator == null) return;
+            if (_animationGraph.IsValid()) _animationGraph.Destroy();
+            _animationGraph = UnityEngine.Playables.PlayableGraph.Create("WeaponAnim");
+            var output = UnityEngine.Animations.AnimationPlayableOutput.Create(
+                _animationGraph, "WeaponAnim", _modelAnimator);
+            var playable = UnityEngine.Animations.AnimationClipPlayable.Create(_animationGraph, clip);
+            output.SetSourcePlayable(playable);
+            _animationGraph.Play();
         }
 
         private bool OwnerIsCrouching => _movement != null && _movement.IsCrouching;
@@ -222,6 +244,7 @@ namespace ClutchFPS.Weapons
             {
                 AudioSource.PlayClipAtPoint(data.reloadSound, transform.position, 0.7f);
             }
+            PlayModelAnimation(data.reloadAnimation);
         }
 
         private void FinishReloadServer()
@@ -237,6 +260,7 @@ namespace ClutchFPS.Weapons
             // every perspective, even though the actual ray came from the camera.
             Vector3 muzzle = transform.position + transform.forward * 0.5f;
             SpawnTracer(muzzle, hitPoint);
+            PlayModelAnimation(data.fireAnimation);
 
             if (data.muzzleFlashPrefab != null)
             {

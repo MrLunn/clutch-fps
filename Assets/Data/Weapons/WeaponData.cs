@@ -70,6 +70,10 @@ namespace ClutchFPS.Weapons
         public AudioClip impactSound;
         [Range(0f, 1f)] public float fireVolume = 0.7f;
 
+        [Header("Animation (optional; clips from the weapon model FBX)")]
+        public AnimationClip fireAnimation;
+        public AnimationClip reloadAnimation;
+
         [Header("VFX (optional; falls back to built-in)")]
         public GameObject muzzleFlashPrefab;
         public GameObject fleshImpactPrefab;
