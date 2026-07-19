@@ -1,4 +1,5 @@
 using ClutchFPS.Core;
+using ClutchFPS.Player;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -27,6 +28,29 @@ namespace ClutchFPS.Weapons
         private float _nextFireTime;
         private int _fireModeIndex;
         private bool _bursting;
+
+        [Header("Feel")]
+        [SerializeField] private float recoilPitchKick = 1.2f;
+        [SerializeField] private float recoilYawKick = 0.4f;
+        [SerializeField] private float kickbackDistance = 0.07f;
+        [SerializeField] private float kickbackRecoverSpeed = 8f;
+
+        private Vector3 _restPosition;
+        private float _kick;
+        private MouseLook _mouseLook;
+
+        private void Awake()
+        {
+            _restPosition = transform.localPosition;
+            _mouseLook = GetComponentInParent<MouseLook>();
+        }
+
+        private void Update()
+        {
+            // Kickback animation: snap back on fire, ease forward to rest.
+            _kick = Mathf.MoveTowards(_kick, 0f, kickbackRecoverSpeed * Time.deltaTime);
+            transform.localPosition = _restPosition - Vector3.forward * (_kick * kickbackDistance);
+        }
 
         public FireMode CurrentFireMode =>
             data.availableFireModes != null && data.availableFireModes.Length > 0
@@ -153,6 +177,14 @@ namespace ClutchFPS.Weapons
             // every perspective, even though the actual ray came from the camera.
             Vector3 muzzle = transform.position + transform.forward * 0.5f;
             SpawnTracer(muzzle, hitPoint);
+            SpawnMuzzleFlash(muzzle);
+            PlayShotSound(muzzle);
+
+            _kick = 1f;
+            if (IsOwner && _mouseLook != null)
+            {
+                _mouseLook.AddRecoil(recoilPitchKick, recoilYawKick);
+            }
         }
 
         private static Material _tracerMaterial;
@@ -175,6 +207,49 @@ namespace ClutchFPS.Weapons
             line.endWidth = 0.005f;
             line.material = _tracerMaterial;
             Destroy(tracer, 0.07f);
+        }
+
+        private static void SpawnMuzzleFlash(Vector3 position)
+        {
+            var flash = new GameObject("MuzzleFlash");
+            flash.transform.position = position;
+            var light = flash.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.8f, 0.45f);
+            light.intensity = 4f;
+            light.range = 5f;
+            Destroy(flash, 0.045f);
+        }
+
+        private static AudioClip _shotClip;
+
+        private static void PlayShotSound(Vector3 position)
+        {
+            if (_shotClip == null)
+            {
+                // Procedural gunshot: sharp noise crack with an exponential decay
+                // plus a low-frequency thump. Placeholder until real SFX exist.
+                const int sampleRate = 44100;
+                const float duration = 0.18f;
+                int sampleCount = (int)(sampleRate * duration);
+                var samples = new float[sampleCount];
+                var random = new System.Random(12345);
+                float previous = 0f;
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    float t = (float)i / sampleRate;
+                    float noise = (float)(random.NextDouble() * 2.0 - 1.0);
+                    // One-pole lowpass keeps the crack from being pure hiss.
+                    previous = Mathf.Lerp(previous, noise, 0.35f);
+                    float crack = previous * Mathf.Exp(-t * 45f);
+                    float thump = Mathf.Sin(2f * Mathf.PI * 70f * t) * Mathf.Exp(-t * 25f) * 0.7f;
+                    samples[i] = Mathf.Clamp(crack + thump, -1f, 1f) * 0.8f;
+                }
+                _shotClip = AudioClip.Create("GunshotProcedural", sampleCount, 1, sampleRate, false);
+                _shotClip.SetData(samples, 0);
+            }
+
+            AudioSource.PlayClipAtPoint(_shotClip, position, 0.6f);
         }
 
         private static Vector3 ApplySpread(Vector3 direction, float spreadDegrees)

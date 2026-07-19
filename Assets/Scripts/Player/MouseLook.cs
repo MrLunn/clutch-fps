@@ -15,6 +15,13 @@ namespace ClutchFPS.Player
 
         private float _pitch;
 
+        /// Weapon recoil: kicks the view up and slightly sideways. Owner-side only.
+        public void AddRecoil(float pitchKick, float yawKick)
+        {
+            _pitch = Mathf.Clamp(_pitch - pitchKick, minPitch, maxPitch);
+            transform.Rotate(Vector3.up * Random.Range(-yawKick, yawKick));
+        }
+
         public override void OnNetworkSpawn()
         {
             enabled = IsOwner;
@@ -26,10 +33,15 @@ namespace ClutchFPS.Player
                 {
                     cam.enabled = true;
                 }
+                if (cameraPivot != null && cameraPivot.TryGetComponent<AudioListener>(out var listener))
+                {
+                    listener.enabled = true;
+                }
             }
-            else if (cameraPivot != null && cameraPivot.TryGetComponent<Camera>(out var otherCam))
+            else if (cameraPivot != null)
             {
-                otherCam.enabled = false;
+                if (cameraPivot.TryGetComponent<Camera>(out var otherCam)) otherCam.enabled = false;
+                if (cameraPivot.TryGetComponent<AudioListener>(out var otherListener)) otherListener.enabled = false;
             }
         }
 
