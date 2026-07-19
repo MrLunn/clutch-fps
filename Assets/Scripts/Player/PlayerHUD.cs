@@ -16,17 +16,35 @@ namespace ClutchFPS.Player
         [SerializeField] private PlayerRespawn respawn;
 
         private bool _settingsOpen;
+        private bool _tuningOpen;
+        private int _tuningSlot;
         private static Texture2D _pixel;
 
         private void Update()
         {
             if (!IsOwner) return;
-            if (Keyboard.current != null && Keyboard.current.f1Key.wasPressedThisFrame)
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return;
+
+            if (keyboard.f1Key.wasPressedThisFrame)
             {
                 _settingsOpen = !_settingsOpen;
-                Cursor.lockState = _settingsOpen ? CursorLockMode.None : CursorLockMode.Locked;
-                Cursor.visible = _settingsOpen;
+                _tuningOpen = false;
+                ApplyCursorState();
             }
+            if (keyboard.escapeKey.wasPressedThisFrame)
+            {
+                _tuningOpen = !_tuningOpen;
+                _settingsOpen = false;
+                ApplyCursorState();
+            }
+        }
+
+        private void ApplyCursorState()
+        {
+            bool anyMenu = _settingsOpen || _tuningOpen;
+            Cursor.lockState = anyMenu ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = anyMenu;
         }
 
         private void OnGUI()
@@ -45,6 +63,7 @@ namespace ClutchFPS.Player
             DrawKillFeed();
             if (Keyboard.current != null && Keyboard.current.tabKey.isPressed) DrawScoreboard();
             if (_settingsOpen) DrawSettings();
+            if (_tuningOpen) DrawWeaponTuning();
         }
 
         private static Texture2D Pixel
@@ -137,6 +156,67 @@ namespace ClutchFPS.Player
                 rowY += 24;
             }
             _smallStyle.alignment = TextAnchor.MiddleRight;
+        }
+
+        private float TuningSlider(string label, float value, float min, float max)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"{label}: {value:0.00}", GUILayout.Width(180));
+            float result = GUILayout.HorizontalSlider(value, min, max, GUILayout.Width(160));
+            GUILayout.EndHorizontal();
+            return result;
+        }
+
+        /// Esc menu: live per-weapon recoil/spread tuning. Edits the WeaponData
+        /// ScriptableObject instances directly — in the editor the values stick
+        /// (save the asset to keep them); in builds they last for the session.
+        private void DrawWeaponTuning()
+        {
+            if (weaponController == null) return;
+
+            Rect panel = new(Screen.width / 2f - 200, Screen.height / 2f - 190, 400, 380);
+            GUI.Box(panel, "WEAPON TUNING  (Esc to close)");
+            GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 30, panel.width - 30, panel.height - 45));
+
+            // Weapon tabs
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < weaponController.SlotCount; i++)
+            {
+                var slotWeapon = weaponController.WeaponAt(i);
+                if (slotWeapon == null) continue;
+                bool selected = i == _tuningSlot;
+                if (GUILayout.Toggle(selected, slotWeapon.Data.weaponName, GUI.skin.button) && !selected)
+                {
+                    _tuningSlot = i;
+                }
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8);
+
+            var weapon = weaponController.WeaponAt(_tuningSlot);
+            if (weapon == null) { GUILayout.EndArea(); return; }
+            var data = weapon.Data;
+
+            GUILayout.Label("— Spread —");
+            data.spreadDegrees = TuningSlider("Max spread (deg)", data.spreadDegrees, 0f, 6f);
+            data.bloomPerShot = TuningSlider("Bloom per shot", data.bloomPerShot, 0f, 1f);
+            data.bloomRecoverPerSecond = TuningSlider("Bloom recovery /s", data.bloomRecoverPerSecond, 0.5f, 8f);
+            data.crouchSpreadMultiplier = TuningSlider("Crouch spread mult", data.crouchSpreadMultiplier, 0.1f, 1f);
+
+            GUILayout.Space(6);
+            GUILayout.Label("— Recoil —");
+            data.recoilPitchKick = TuningSlider("Pitch kick (deg)", data.recoilPitchKick, 0f, 3f);
+            data.recoilYawKick = TuningSlider("Yaw kick (deg)", data.recoilYawKick, 0f, 1.5f);
+            data.recoilMinScale = TuningSlider("First-shot scale", data.recoilMinScale, 0f, 1f);
+            data.recoilMaxScale = TuningSlider("Full-bloom scale", data.recoilMaxScale, 0.5f, 2.5f);
+            data.crouchRecoilMultiplier = TuningSlider("Crouch recoil mult", data.crouchRecoilMultiplier, 0.1f, 1f);
+
+            GUILayout.Space(6);
+            GUILayout.Label("— Feel —");
+            data.kickbackDistance = TuningSlider("Kickback (m)", data.kickbackDistance, 0f, 0.2f);
+            data.fireRate = TuningSlider("Fire rate /s", data.fireRate, 1f, 20f);
+
+            GUILayout.EndArea();
         }
 
         private void DrawDeathScreen()
