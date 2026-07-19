@@ -5,7 +5,8 @@ namespace ClutchFPS.Core
     public enum ItemType
     {
         Medkit = 0,
-        AmmoPack = 1
+        Ammo556 = 1,
+        Ammo9mm = 2
     }
 
     public struct ItemInfo
@@ -13,6 +14,7 @@ namespace ClutchFPS.Core
         public string Name;
         public int MaxStack;
         public Color Tint;
+        public bool Usable;
     }
 
     /// Code registry of item definitions; index = item id carried over the
@@ -21,8 +23,9 @@ namespace ClutchFPS.Core
     {
         private static readonly ItemInfo[] Registry =
         {
-            new() { Name = "Medkit", MaxStack = 3, Tint = new Color(0.9f, 0.3f, 0.3f) },
-            new() { Name = "Ammo Pack", MaxStack = 5, Tint = new Color(0.3f, 0.8f, 0.35f) }
+            new() { Name = "Medkit", MaxStack = 3, Tint = new Color(0.9f, 0.3f, 0.3f), Usable = true },
+            new() { Name = "5.56 Rounds", MaxStack = 90, Tint = new Color(0.3f, 0.8f, 0.35f), Usable = false },
+            new() { Name = "9mm Rounds", MaxStack = 90, Tint = new Color(0.95f, 0.8f, 0.3f), Usable = false }
         };
 
         public static ItemInfo Get(int id) =>

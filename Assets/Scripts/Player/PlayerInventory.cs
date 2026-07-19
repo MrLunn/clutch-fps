@@ -36,6 +36,46 @@ namespace ClutchFPS.Player
         public int SlotCount => _slots.Count;
         public Slot GetSlot(int index) => _slots[index];
 
+        /// Total amount of one item across all slots (e.g. reserve ammo).
+        public int CountOf(int itemId)
+        {
+            int total = 0;
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (_slots[i].ItemId == itemId) total += _slots[i].Count;
+            }
+            return total;
+        }
+
+        /// Server-side: consume up to `amount` of an item; returns how many
+        /// were actually taken. Used by reloading.
+        public int ServerTakeItem(int itemId, int amount)
+        {
+            if (!IsServer || amount <= 0) return 0;
+            int taken = 0;
+            for (int i = _slots.Count - 1; i >= 0 && taken < amount; i--)
+            {
+                if (_slots[i].ItemId != itemId) continue;
+                var slot = _slots[i];
+                int take = Mathf.Min(slot.Count, amount - taken);
+                slot.Count -= take;
+                taken += take;
+                if (slot.Count <= 0) _slots.RemoveAt(i);
+                else _slots[i] = slot;
+            }
+            return taken;
+        }
+
+        public override void OnNetworkSpawn()
+        {
+            // Starting reserve: enough to fight, scarce enough that looting matters.
+            if (IsServer)
+            {
+                ServerAddItem((int)ItemType.Ammo556, 60);
+                ServerAddItem((int)ItemType.Ammo9mm, 30);
+            }
+        }
+
         /// Server-side. Returns false if nothing could be added (inventory full).
         public bool ServerAddItem(int itemId, int amount)
         {
@@ -77,12 +117,7 @@ namespace ClutchFPS.Player
                         consumed = true;
                     }
                     break;
-                case ItemType.AmmoPack:
-                    if (TryGetComponent<PlayerWeaponController>(out var weapons))
-                    {
-                        consumed = weapons.ServerRefillAllAmmo();
-                    }
-                    break;
+                // Ammo items are not "used" — reloading consumes them.
             }
 
             if (!consumed) return;

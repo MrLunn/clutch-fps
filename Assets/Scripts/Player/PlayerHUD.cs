@@ -142,35 +142,96 @@ namespace ClutchFPS.Player
             if (inventory == null) return;
             EnsureStyles();
 
-            Rect panel = new(Screen.width / 2f - 190, Screen.height / 2f - 130, 380, 260);
-            GUI.Box(panel, "INVENTORY  (Tab to close — click an item to use it)");
-            GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 32, panel.width - 30, panel.height - 45));
+            Rect panel = new(Screen.width / 2f - 340, Screen.height / 2f - 160, 680, 320);
+            GUI.Box(panel, "CHARACTER  (Tab to close)");
 
+            // Left column: the character.
+            GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 32, 190, panel.height - 45));
+            _smallStyle.alignment = TextAnchor.MiddleLeft;
+            GUILayout.Label(respawn != null ? respawn.ResolvedName : "Player",
+                new GUIStyle { fontSize = 20, fontStyle = FontStyle.Bold,
+                    normal = { textColor = Color.white } });
+            GUILayout.Space(8);
+            if (health != null)
+            {
+                GUILayout.Label($"Health  {Mathf.CeilToInt(health.CurrentHealth)} / {Mathf.CeilToInt(health.MaxHealth)}");
+                Rect barBack = GUILayoutUtility.GetRect(170, 12);
+                var prevColor = GUI.color;
+                GUI.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
+                GUI.DrawTexture(barBack, Pixel);
+                GUI.color = new Color(0.85f, 0.25f, 0.2f);
+                GUI.DrawTexture(new Rect(barBack.x, barBack.y,
+                    barBack.width * (health.CurrentHealth / health.MaxHealth), barBack.height), Pixel);
+                GUI.color = prevColor;
+            }
+            GUILayout.Space(8);
+            if (respawn != null)
+            {
+                GUILayout.Label($"Kills  {respawn.Kills.Value}    Deaths  {respawn.Deaths.Value}");
+            }
+            if (practice != null)
+            {
+                GUILayout.Label($"Best practice run  {practice.BestScore}");
+            }
+            GUILayout.EndArea();
+
+            // Middle column: loadout with reserve ammo per weapon.
+            GUILayout.BeginArea(new Rect(panel.x + 220, panel.y + 32, 210, panel.height - 45));
+            GUILayout.Label("— Loadout —");
+            if (weaponController != null)
+            {
+                for (int i = 0; i < weaponController.SlotCount; i++)
+                {
+                    var slotWeapon = weaponController.WeaponAt(i);
+                    if (slotWeapon == null) continue;
+                    if (!weaponController.OwnsSlot(i))
+                    {
+                        GUILayout.Label($"[{i + 1}] —");
+                        continue;
+                    }
+                    var ammoInfo = Core.Items.Get(slotWeapon.Data.ammoItemId);
+                    GUILayout.Label(
+                        $"[{i + 1}] {slotWeapon.Data.weaponName}   {slotWeapon.CurrentAmmo}/{slotWeapon.Data.magazineSize}");
+                    GUILayout.Label($"      {ammoInfo.Name}: {slotWeapon.ReserveAmmo} reserve", _smallStyle);
+                }
+            }
+            GUILayout.EndArea();
+
+            // Right column: item slots.
+            GUILayout.BeginArea(new Rect(panel.x + 450, panel.y + 32, 215, panel.height - 45));
+            GUILayout.Label("— Items —");
             if (inventory.SlotCount == 0)
             {
-                GUILayout.Label("Empty. Loot medkits and ammo packs around the range with E.");
+                GUILayout.Label("Empty. Loot the range with E.");
             }
-
-            for (int i = 0; i < inventory.SlotCount; i += 3)
+            for (int i = 0; i < inventory.SlotCount; i += 2)
             {
                 GUILayout.BeginHorizontal();
-                for (int j = i; j < Mathf.Min(i + 3, inventory.SlotCount); j++)
+                for (int j = i; j < Mathf.Min(i + 2, inventory.SlotCount); j++)
                 {
                     var slot = inventory.GetSlot(j);
                     var info = Core.Items.Get(slot.ItemId);
                     var prev = GUI.backgroundColor;
                     GUI.backgroundColor = info.Tint;
-                    if (GUILayout.Button($"{info.Name}\nx{slot.Count}", GUILayout.Width(110), GUILayout.Height(48)))
+                    string label = $"{info.Name}\nx{slot.Count}";
+                    if (info.Usable)
                     {
-                        inventory.UseItemServerRpc(j);
+                        if (GUILayout.Button(label, GUILayout.Width(98), GUILayout.Height(44)))
+                        {
+                            inventory.UseItemServerRpc(j);
+                        }
+                    }
+                    else
+                    {
+                        GUILayout.Box(label, GUILayout.Width(98), GUILayout.Height(44));
                     }
                     GUI.backgroundColor = prev;
                 }
                 GUILayout.EndHorizontal();
             }
-
             GUILayout.FlexibleSpace();
-            GUILayout.Label("Medkit: +50 HP    Ammo Pack: refills all weapons");
+            GUILayout.Label("Click usable items (medkits) to use.\nAmmo is spent by reloading.", _smallStyle);
+            _smallStyle.alignment = TextAnchor.MiddleRight;
             GUILayout.EndArea();
         }
 
@@ -433,13 +494,21 @@ namespace ClutchFPS.Player
                 _nameStyle.normal.textColor = Color.white;
                 GUI.Label(new Rect(right - 280, y, 280, 26), weapon.Data.weaponName.ToUpper(), _nameStyle);
 
-                _ammoStyle.normal.textColor = weapon.CurrentAmmo == 0 ? new Color(1f, 0.35f, 0.3f) : Color.white;
-                string ammoText = weapon.IsReloading ? "RELOADING" : $"{weapon.CurrentAmmo}  |  {weapon.Data.magazineSize}";
+                _ammoStyle.normal.textColor =
+                    weapon.CurrentAmmo == 0 ? new Color(1f, 0.35f, 0.3f) : Color.white;
+                string ammoText = weapon.IsReloading
+                    ? "RELOADING"
+                    : $"{weapon.CurrentAmmo}  |  {weapon.ReserveAmmo}";
                 GUI.Label(new Rect(right - 280, y + 26, 280, 32), ammoText, _ammoStyle);
 
                 _smallStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
                 string modeText = weapon.CurrentFireMode.ToString().ToUpper();
                 if (Time.time - HitFeedback.MagFullTime < 1f) modeText = "MAG FULL";
+                if (Time.time - HitFeedback.NoAmmoTime < 1f)
+                {
+                    modeText = $"NO {Core.Items.Get(weapon.Data.ammoItemId).Name.ToUpper()}";
+                    _smallStyle.normal.textColor = new Color(1f, 0.4f, 0.3f);
+                }
                 GUI.Label(new Rect(right - 280, y + 58, 280, 18), modeText, _smallStyle);
 
                 // Slot strip: dim unowned, highlight active.

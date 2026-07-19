@@ -8,6 +8,12 @@ namespace ClutchFPS.Weapons
     {
         public static float LastHitTime { get; private set; } = -10f;
         public static float MagFullTime { get; private set; } = -10f;
+        public static float NoAmmoTime { get; private set; } = -10f;
+
+        public static void RegisterNoAmmo()
+        {
+            NoAmmoTime = Time.time;
+        }
 
         public static void RegisterHit()
         {

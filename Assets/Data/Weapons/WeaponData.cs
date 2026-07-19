@@ -28,6 +28,9 @@ namespace ClutchFPS.Weapons
         public float damage = 20f;
         public float range = 100f;
 
+        [Tooltip("Item id of the ammo this weapon consumes on reload (1 = 5.56, 2 = 9mm).")]
+        public int ammoItemId = 1;
+
         [Header("Fire Rate & Ammo")]
         [Tooltip("Shots per second while trigger/fire input is held (Automatic) or per press (Single).")]
         public float fireRate = 6f;

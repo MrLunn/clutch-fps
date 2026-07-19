@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Pistol
   m_EditorClassIdentifier:
   weaponName: Pistol
+  ammoItemId: 2
   availableFireModes:
   - 0
   burstCount: 3

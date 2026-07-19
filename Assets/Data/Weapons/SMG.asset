@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: SMG
   m_EditorClassIdentifier:
   weaponName: SMG
+  ammoItemId: 2
   availableFireModes:
   - 2
   - 0

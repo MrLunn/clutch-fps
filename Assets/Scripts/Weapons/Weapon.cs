@@ -42,6 +42,7 @@ namespace ClutchFPS.Weapons
         private float _localBloom;
 
         private FirstPersonMovement _movement;
+        private Player.PlayerInventory _inventory;
         private Animator _modelAnimator;
         private PlayableGraph _animationGraph;
 
@@ -51,6 +52,7 @@ namespace ClutchFPS.Weapons
             _restRotation = transform.localRotation;
             _mouseLook = GetComponentInParent<MouseLook>();
             _movement = GetComponentInParent<FirstPersonMovement>();
+            _inventory = GetComponentInParent<Player.PlayerInventory>();
             _modelAnimator = GetComponentInChildren<Animator>(true);
         }
 
@@ -158,12 +160,20 @@ namespace ClutchFPS.Weapons
             _nextFireTime = Time.time + 1f / Mathf.Max(data.fireRate, 0.01f);
         }
 
+        /// Reserve rounds available for this weapon in the carrier's inventory.
+        public int ReserveAmmo => _inventory != null ? _inventory.CountOf(data.ammoItemId) : 0;
+
         public void TryReload()
         {
             if (!IsOwner || _isReloading.Value) return;
             if (_currentAmmo.Value >= data.magazineSize)
             {
                 HitFeedback.RegisterMagFull();
+                return;
+            }
+            if (ReserveAmmo <= 0)
+            {
+                HitFeedback.RegisterNoAmmo();
                 return;
             }
             ReloadServerRpc();
@@ -233,6 +243,8 @@ namespace ClutchFPS.Weapons
         private void StartReloadServer()
         {
             if (_isReloading.Value) return;
+            // No reserve, no reload — ammo is a real resource now.
+            if (_inventory != null && _inventory.CountOf(data.ammoItemId) <= 0) return;
             _isReloading.Value = true;
             ReloadSoundClientRpc();
             Invoke(nameof(FinishReloadServer), data.reloadTime);
@@ -250,7 +262,11 @@ namespace ClutchFPS.Weapons
 
         private void FinishReloadServer()
         {
-            _currentAmmo.Value = data.magazineSize;
+            int needed = data.magazineSize - _currentAmmo.Value;
+            int loaded = _inventory != null
+                ? _inventory.ServerTakeItem(data.ammoItemId, needed)
+                : needed;
+            _currentAmmo.Value += loaded;
             _isReloading.Value = false;
         }
 

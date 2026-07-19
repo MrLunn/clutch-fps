@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 1000006}
   - component: {fileID: 1000008}
   m_Layer: 0
-  m_Name: AmmoPackPickup
+  m_Name: Ammo9mmPickup
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -73,11 +73,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  displayName: 5.56 Rounds
+  displayName: 9mm Rounds
   visual: {fileID: 2000000}
   respawnSeconds: 20
   spinDegreesPerSecond: 90
-  itemId: 1
+  itemId: 2
   amount: 30
 --- !u!1 &2000000
 GameObject:
@@ -140,7 +140,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 8c92878b4c479374aa9777523aa9ad51, type: 2}
+  - {fileID: 2100000, guid: c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
