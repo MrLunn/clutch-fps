@@ -9,6 +9,12 @@ namespace ClutchFPS.Networking
     {
         [SerializeField] private Transform[] spawnPoints;
 
+        public Transform GetRandomSpawnPoint()
+        {
+            if (spawnPoints == null || spawnPoints.Length == 0) return null;
+            return spawnPoints[Random.Range(0, spawnPoints.Length)];
+        }
+
         private void Awake()
         {
             if (NetworkManager.Singleton != null)

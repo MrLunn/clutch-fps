@@ -13,6 +13,15 @@ namespace ClutchFPS.Weapons
         [SerializeField] private Weapon[] weapons;
 
         private int _activeIndex;
+        private Player.PlayerRespawn _respawn;
+
+        private void Awake()
+        {
+            _respawn = GetComponent<Player.PlayerRespawn>();
+        }
+
+        /// Re-applies holster state so only the active slot's model shows.
+        public void RefreshVisibleWeapon() => SetActiveWeapon(_activeIndex);
 
         /// Bitmask of loadout slots the player has picked up. Slot 0 (rifle)
         /// is owned from spawn; others come from table pickups.
@@ -64,6 +73,7 @@ namespace ClutchFPS.Weapons
         private void Update()
         {
             if (!IsOwner || weapons.Length == 0) return;
+            if (_respawn != null && _respawn.IsDead) return;
 
             HandleSwitchInput();
 

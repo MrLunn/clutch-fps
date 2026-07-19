@@ -13,6 +13,7 @@ namespace ClutchFPS.Player
         [SerializeField] private PlayerWeaponController weaponController;
         [SerializeField] private Health health;
         [SerializeField] private PlayerInteractor interactor;
+        [SerializeField] private PlayerRespawn respawn;
 
         private bool _settingsOpen;
         private static Texture2D _pixel;
@@ -31,6 +32,12 @@ namespace ClutchFPS.Player
         private void OnGUI()
         {
             if (!IsOwner) return;
+
+            if (respawn != null && respawn.IsDead)
+            {
+                DrawDeathScreen();
+                return;
+            }
 
             DrawCrosshair();
             DrawHitmarker();
@@ -85,6 +92,22 @@ namespace ClutchFPS.Player
                     break;
             }
             GUI.color = previous;
+        }
+
+        private void DrawDeathScreen()
+        {
+            EnsureStyles();
+            var previous = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.55f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Pixel);
+            GUI.color = previous;
+
+            _promptStyle.fontSize = 42;
+            _promptStyle.normal.textColor = new Color(0.95f, 0.25f, 0.2f);
+            GUI.Label(new Rect(0, Screen.height / 2f - 60, Screen.width, 50), "YOU DIED", _promptStyle);
+            _promptStyle.fontSize = 18;
+            _promptStyle.normal.textColor = Color.white;
+            GUI.Label(new Rect(0, Screen.height / 2f, Screen.width, 30), "Respawning...", _promptStyle);
         }
 
         private void DrawHitmarker()

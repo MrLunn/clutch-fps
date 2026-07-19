@@ -49,9 +49,13 @@ namespace ClutchFPS.Player
             _controller.enabled = true;
         }
 
+        private PlayerRespawn _respawn;
+
         private void Update()
         {
             if (!IsOwner) return;
+            if (_respawn == null) _respawn = GetComponent<PlayerRespawn>();
+            if (_respawn != null && _respawn.IsDead) return;
 
             Vector2 moveInput = Vector2.zero;
             var keyboard = Keyboard.current;

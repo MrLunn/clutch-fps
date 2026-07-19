@@ -31,9 +31,13 @@ namespace ClutchFPS.Player
             }
         }
 
+        private PlayerRespawn _respawn;
+
         private void Update()
         {
             if (!IsOwner || Nearby == null) return;
+            if (_respawn == null) _respawn = GetComponent<PlayerRespawn>();
+            if (_respawn != null && _respawn.IsDead) return;
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.eKey.wasPressedThisFrame)
             {
