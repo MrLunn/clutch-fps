@@ -293,8 +293,10 @@ namespace ClutchFPS.Weapons
             {
                 if (data.muzzleFlashPrefab != null)
                 {
-                    var mf = Instantiate(data.muzzleFlashPrefab, muzzle, transform.rotation);
-                    Destroy(mf, data.vfxLifetime);
+                    // Parented so it rides the weapon; destroyed fast because
+                    // WarFX muzzle flashes loop while alive.
+                    var mf = Instantiate(data.muzzleFlashPrefab, muzzle, transform.rotation, transform);
+                    Destroy(mf, 0.06f);
                 }
                 else
                 {
