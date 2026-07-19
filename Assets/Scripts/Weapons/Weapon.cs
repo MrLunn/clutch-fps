@@ -39,6 +39,11 @@ namespace ClutchFPS.Weapons
         private float _kick;
         private MouseLook _mouseLook;
 
+        // Bloom (0..1): grows per shot, decays while not firing. The server copy
+        // drives the authoritative spread; the local copy scales recoil feel.
+        private float _serverBloom;
+        private float _localBloom;
+
         private void Awake()
         {
             _restPosition = transform.localPosition;
@@ -50,6 +55,10 @@ namespace ClutchFPS.Weapons
             // Kickback animation: snap back on fire, ease forward to rest.
             _kick = Mathf.MoveTowards(_kick, 0f, kickbackRecoverSpeed * Time.deltaTime);
             transform.localPosition = _restPosition - Vector3.forward * (_kick * kickbackDistance);
+
+            float recover = data.bloomRecoverPerSecond * Time.deltaTime;
+            _serverBloom = Mathf.MoveTowards(_serverBloom, 0f, recover);
+            _localBloom = Mathf.MoveTowards(_localBloom, 0f, recover);
         }
 
         public FireMode CurrentFireMode =>
@@ -119,7 +128,8 @@ namespace ClutchFPS.Weapons
 
             _currentAmmo.Value--;
 
-            Vector3 spreadDirection = ApplySpread(direction, data.spreadDegrees);
+            Vector3 spreadDirection = ApplySpread(direction, data.spreadDegrees * _serverBloom);
+            _serverBloom = Mathf.Min(1f, _serverBloom + data.bloomPerShot);
             Vector3 hitPoint = origin + spreadDirection * data.range;
 
             byte hitType = 0; // 0 = air, 1 = world, 2 = flesh
@@ -204,7 +214,10 @@ namespace ClutchFPS.Weapons
             _kick = 1f;
             if (IsOwner && _mouseLook != null)
             {
-                _mouseLook.AddRecoil(recoilPitchKick, recoilYawKick);
+                // First shots barely kick; sustained fire climbs harder.
+                float recoilScale = Mathf.Lerp(0.35f, 1.25f, _localBloom);
+                _mouseLook.AddRecoil(recoilPitchKick * recoilScale, recoilYawKick * recoilScale);
+                _localBloom = Mathf.Min(1f, _localBloom + data.bloomPerShot);
             }
         }
 

@@ -22,4 +22,6 @@ MonoBehaviour:
   fireRate: 4
   magazineSize: 12
   reloadTime: 1.2
-  spreadDegrees: 0.15
+  spreadDegrees: 1
+  bloomPerShot: 0.3
+  bloomRecoverPerSecond: 3

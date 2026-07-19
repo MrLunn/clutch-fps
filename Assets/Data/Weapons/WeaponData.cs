@@ -35,7 +35,13 @@ namespace ClutchFPS.Weapons
         public float reloadTime = 1.4f;
 
         [Header("Accuracy")]
-        [Tooltip("Max degrees of random spread added to each shot.")]
+        [Tooltip("Spread in degrees at full bloom. First shots have (near) zero spread.")]
         public float spreadDegrees = 1.5f;
+
+        [Tooltip("How much one shot adds to bloom (0-1 scale; 0.25 = full bloom after 4 quick shots).")]
+        public float bloomPerShot = 0.22f;
+
+        [Tooltip("Bloom recovered per second while not firing.")]
+        public float bloomRecoverPerSecond = 2.2f;
     }
 }
