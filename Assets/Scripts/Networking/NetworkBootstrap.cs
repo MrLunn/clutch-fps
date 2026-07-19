@@ -1,4 +1,5 @@
 using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 
 namespace ClutchFPS.Networking
@@ -8,6 +9,13 @@ namespace ClutchFPS.Networking
     /// Attach to the same GameObject as the NetworkManager.
     public class NetworkBootstrap : MonoBehaviour
     {
+        private string _address = "127.0.0.1";
+
+        private static UnityTransport GetTransport(NetworkManager networkManager)
+        {
+            return networkManager.NetworkConfig.NetworkTransport as UnityTransport;
+        }
+
         // Explicitly release the transport socket when play mode ends or the
         // app quits; otherwise the editor process keeps UDP 7777 bound and the
         // next StartHost fails with a transport start failure.
@@ -37,13 +45,32 @@ namespace ClutchFPS.Networking
             // Centered so the buttons stay visible regardless of game-view
             // zoom/aspect cropping at the screen edges.
             float width = 240;
-            float height = 160;
+            float height = 210;
             GUILayout.BeginArea(new Rect(
                 (Screen.width - width) / 2f, (Screen.height - height) / 2f, width, height));
             GUILayout.Label("CLUTCH FPS");
-            if (GUILayout.Button("Host", GUILayout.Height(36))) networkManager.StartHost();
-            if (GUILayout.Button("Client", GUILayout.Height(36))) networkManager.StartClient();
-            if (GUILayout.Button("Server", GUILayout.Height(36))) networkManager.StartServer();
+
+            if (GUILayout.Button("Host", GUILayout.Height(36)))
+            {
+                // Listen on all interfaces so LAN/VPN clients can reach us.
+                GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
+                networkManager.StartHost();
+            }
+
+            GUILayout.Space(8);
+            GUILayout.Label("Host IP (for Client):");
+            _address = GUILayout.TextField(_address, GUILayout.Height(26));
+            if (GUILayout.Button("Client", GUILayout.Height(36)))
+            {
+                GetTransport(networkManager)?.SetConnectionData(_address.Trim(), 7777);
+                networkManager.StartClient();
+            }
+
+            if (GUILayout.Button("Server", GUILayout.Height(30)))
+            {
+                GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
+                networkManager.StartServer();
+            }
             GUILayout.EndArea();
         }
     }
