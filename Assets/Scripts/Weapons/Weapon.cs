@@ -133,9 +133,11 @@ namespace ClutchFPS.Weapons
             Vector3 hitPoint = origin + spreadDirection * data.range;
 
             byte hitType = 0; // 0 = air, 1 = world, 2 = flesh
+            Vector3 hitNormal = -spreadDirection;
             if (Physics.Raycast(origin, spreadDirection, out RaycastHit hit, data.range, hittableMask))
             {
                 hitPoint = hit.point;
+                hitNormal = hit.normal;
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 if (damageable != null)
                 {
@@ -154,7 +156,7 @@ namespace ClutchFPS.Weapons
                 }
             }
 
-            HitEffectClientRpc(origin, hitPoint, hitType);
+            HitEffectClientRpc(origin, hitPoint, hitNormal, hitType);
 
             if (_currentAmmo.Value <= 0)
             {
@@ -183,7 +185,17 @@ namespace ClutchFPS.Weapons
         {
             if (_isReloading.Value) return;
             _isReloading.Value = true;
+            ReloadSoundClientRpc();
             Invoke(nameof(FinishReloadServer), data.reloadTime);
+        }
+
+        [ClientRpc]
+        private void ReloadSoundClientRpc()
+        {
+            if (data.reloadSound != null)
+            {
+                AudioSource.PlayClipAtPoint(data.reloadSound, transform.position, 0.7f);
+            }
         }
 
         private void FinishReloadServer()
@@ -193,18 +205,48 @@ namespace ClutchFPS.Weapons
         }
 
         [ClientRpc]
-        private void HitEffectClientRpc(Vector3 origin, Vector3 hitPoint, byte hitType)
+        private void HitEffectClientRpc(Vector3 origin, Vector3 hitPoint, Vector3 hitNormal, byte hitType)
         {
             // Tracer starts at this weapon's muzzle so it reads correctly from
             // every perspective, even though the actual ray came from the camera.
             Vector3 muzzle = transform.position + transform.forward * 0.5f;
             SpawnTracer(muzzle, hitPoint);
-            SpawnMuzzleFlash(muzzle);
-            PlayShotSound(muzzle);
+
+            if (data.muzzleFlashPrefab != null)
+            {
+                var mf = Instantiate(data.muzzleFlashPrefab, muzzle, transform.rotation);
+                Destroy(mf, data.vfxLifetime);
+            }
+            else
+            {
+                SpawnMuzzleFlash(muzzle);
+            }
+
+            if (data.fireSound != null)
+            {
+                AudioSource.PlayClipAtPoint(data.fireSound, muzzle, data.fireVolume);
+            }
+            else
+            {
+                PlayShotSound(muzzle);
+            }
 
             if (hitType > 0)
             {
-                SpawnImpact(hitPoint, flesh: hitType == 2);
+                GameObject impactPrefab = hitType == 2 ? data.fleshImpactPrefab : data.worldImpactPrefab;
+                if (impactPrefab != null)
+                {
+                    var impact = Instantiate(impactPrefab, hitPoint, Quaternion.LookRotation(hitNormal));
+                    Destroy(impact, data.vfxLifetime);
+                }
+                else
+                {
+                    SpawnImpact(hitPoint, flesh: hitType == 2);
+                }
+                if (data.impactSound != null)
+                {
+                    AudioSource.PlayClipAtPoint(data.impactSound, hitPoint, 0.6f);
+                }
             }
             if (IsOwner && hitType == 2)
             {

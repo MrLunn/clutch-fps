@@ -63,5 +63,18 @@ namespace ClutchFPS.Weapons
         public float crouchSpreadMultiplier = 0.45f;
         [Tooltip("Multiplies recoil while crouched.")]
         public float crouchRecoilMultiplier = 0.7f;
+
+        [Header("Audio (optional; falls back to procedural)")]
+        public AudioClip fireSound;
+        public AudioClip reloadSound;
+        public AudioClip impactSound;
+        [Range(0f, 1f)] public float fireVolume = 0.7f;
+
+        [Header("VFX (optional; falls back to built-in)")]
+        public GameObject muzzleFlashPrefab;
+        public GameObject fleshImpactPrefab;
+        public GameObject worldImpactPrefab;
+        [Tooltip("Seconds before a spawned VFX instance is destroyed.")]
+        public float vfxLifetime = 2f;
     }
 }

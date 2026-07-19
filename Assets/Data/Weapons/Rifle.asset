@@ -35,3 +35,11 @@ MonoBehaviour:
   kickbackRecoverSpeed: 8
   crouchSpreadMultiplier: 0.45
   crouchRecoilMultiplier: 0.7
+  fireSound: {fileID: 8300000, guid: 9e9480b4d07646942b555fd43f2a0f71, type: 3}
+  reloadSound: {fileID: 8300000, guid: 778c7be53403f9e45804f5a61a13a3e6, type: 3}
+  impactSound: {fileID: 8300000, guid: 172f576bc4226094180d5993f9325d57, type: 3}
+  fireVolume: 0.7
+  muzzleFlashPrefab: {fileID: 100100000, guid: 30b4cc2728d8cec499fad63ba93785a4, type: 3}
+  fleshImpactPrefab: {fileID: 100100000, guid: 3b1513bcb86426b4795879be6a128ed7, type: 3}
+  worldImpactPrefab: {fileID: 100100000, guid: 99c73c92ac40473459640b165473206f, type: 3}
+  vfxLifetime: 2
