@@ -2,6 +2,8 @@ using ClutchFPS.Core;
 using ClutchFPS.Player;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
 namespace ClutchFPS.Weapons
 {
@@ -41,7 +43,7 @@ namespace ClutchFPS.Weapons
 
         private FirstPersonMovement _movement;
         private Animator _modelAnimator;
-        private UnityEngine.Playables.PlayableGraph _animationGraph;
+        private PlayableGraph _animationGraph;
 
         private void Awake()
         {
@@ -63,10 +65,9 @@ namespace ClutchFPS.Weapons
         {
             if (clip == null || _modelAnimator == null) return;
             if (_animationGraph.IsValid()) _animationGraph.Destroy();
-            _animationGraph = UnityEngine.Playables.PlayableGraph.Create("WeaponAnim");
-            var output = UnityEngine.Animations.AnimationPlayableOutput.Create(
-                _animationGraph, "WeaponAnim", _modelAnimator);
-            var playable = UnityEngine.Animations.AnimationClipPlayable.Create(_animationGraph, clip);
+            _animationGraph = PlayableGraph.Create("WeaponAnim");
+            var output = AnimationPlayableOutput.Create(_animationGraph, "WeaponAnim", _modelAnimator);
+            var playable = AnimationClipPlayable.Create(_animationGraph, clip);
             output.SetSourcePlayable(playable);
             _animationGraph.Play();
         }
