@@ -4,25 +4,21 @@ using UnityEngine;
 
 namespace ClutchFPS.Environment
 {
-    /// Simple range target: has Health, tips over when "killed", pops back up after a delay.
-    /// Not a player or loot source — just a foundation prop to validate the weapon system.
+    /// Range target: has Health, vanishes when killed, reappears after a delay.
+    /// Colliders are disabled while dead so shots pass through the empty spot.
     [RequireComponent(typeof(Health))]
     public class ShootingTarget : NetworkBehaviour
     {
         [SerializeField] private Transform visual;
-        [SerializeField] private float respawnDelay = 3f;
-        [SerializeField] private Vector3 knockedRotation = new(-90f, 0f, 0f);
+        [SerializeField] private float respawnDelay = 2f;
 
         private Health _health;
-        private Quaternion _uprightRotation;
+        private Collider[] _colliders;
 
         private void Awake()
         {
             _health = GetComponent<Health>();
-            if (visual != null)
-            {
-                _uprightRotation = visual.localRotation;
-            }
+            _colliders = GetComponentsInChildren<Collider>(true);
         }
 
         public override void OnNetworkSpawn()
@@ -38,22 +34,24 @@ namespace ClutchFPS.Environment
         private void OnDied(ulong attackerClientId)
         {
             if (!IsServer) return;
-
-            SetKnockedClientRpc(true);
+            SetDeadClientRpc(true);
             Invoke(nameof(RespawnServer), respawnDelay);
         }
 
         private void RespawnServer()
         {
             _health.ResetHealth();
-            SetKnockedClientRpc(false);
+            SetDeadClientRpc(false);
         }
 
         [ClientRpc]
-        private void SetKnockedClientRpc(bool knocked)
+        private void SetDeadClientRpc(bool dead)
         {
-            if (visual == null) return;
-            visual.localRotation = knocked ? Quaternion.Euler(knockedRotation) : _uprightRotation;
+            if (visual != null) visual.gameObject.SetActive(!dead);
+            foreach (var collider in _colliders)
+            {
+                collider.enabled = !dead;
+            }
         }
     }
 }

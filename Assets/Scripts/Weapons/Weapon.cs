@@ -30,8 +30,8 @@ namespace ClutchFPS.Weapons
         private bool _bursting;
 
         [Header("Feel")]
-        [SerializeField] private float recoilPitchKick = 1.2f;
-        [SerializeField] private float recoilYawKick = 0.4f;
+        [SerializeField] private float recoilPitchKick = 0.6f;
+        [SerializeField] private float recoilYawKick = 0.2f;
         [SerializeField] private float kickbackDistance = 0.07f;
         [SerializeField] private float kickbackRecoverSpeed = 8f;
 
@@ -125,10 +125,16 @@ namespace ClutchFPS.Weapons
             if (Physics.Raycast(origin, spreadDirection, out RaycastHit hit, data.range, hittableMask))
             {
                 hitPoint = hit.point;
-                if (hit.collider.TryGetComponent<IDamageable>(out var damageable))
+                var damageable = hit.collider.GetComponentInParent<IDamageable>();
+                if (damageable != null)
                 {
+                    float damage = data.damage;
+                    if (hit.collider.TryGetComponent<HitZone>(out var zone))
+                    {
+                        damage = zone.instantKill ? 99999f : damage * zone.damageMultiplier;
+                    }
                     ulong attackerId = rpcParams.Receive.SenderClientId;
-                    damageable.TakeDamage(data.damage, attackerId);
+                    damageable.TakeDamage(damage, attackerId);
                 }
             }
 
@@ -216,9 +222,9 @@ namespace ClutchFPS.Weapons
             var light = flash.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = new Color(1f, 0.8f, 0.45f);
-            light.intensity = 4f;
-            light.range = 5f;
-            Destroy(flash, 0.045f);
+            light.intensity = 1.3f;
+            light.range = 2.5f;
+            Destroy(flash, 0.03f);
         }
 
         private static AudioClip _shotClip;
