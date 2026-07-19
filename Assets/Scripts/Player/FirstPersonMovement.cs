@@ -12,6 +12,17 @@ namespace ClutchFPS.Player
         [SerializeField] private float jumpHeight = 1.2f;
         [SerializeField] private float gravity = -20f;
 
+        [Header("Crouch")]
+        [SerializeField] private Transform cameraPivot;
+        [SerializeField] private float crouchSpeedMultiplier = 0.55f;
+        [SerializeField] private float standHeight = 1.8f;
+        [SerializeField] private float crouchHeight = 1.2f;
+        [SerializeField] private float standCameraY = 0.7f;
+        [SerializeField] private float crouchCameraY = 0.35f;
+        [SerializeField] private float crouchTransitionSpeed = 6f;
+
+        public bool IsCrouching { get; private set; }
+
         private CharacterController _controller;
         private Vector3 _verticalVelocity;
 
@@ -61,8 +72,20 @@ namespace ClutchFPS.Player
             Vector3 moveDirection = transform.right * moveInput.x + transform.forward * moveInput.y;
             moveDirection = Vector3.ClampMagnitude(moveDirection, 1f);
 
-            bool sprinting = keyboard != null && keyboard.leftShiftKey.isPressed;
+            IsCrouching = keyboard != null && keyboard.leftCtrlKey.isPressed;
+            _controller.height = IsCrouching ? crouchHeight : standHeight;
+            _controller.center = new Vector3(0f, _controller.height / 2f, 0f);
+            if (cameraPivot != null)
+            {
+                float targetY = IsCrouching ? crouchCameraY : standCameraY;
+                Vector3 pivotPosition = cameraPivot.localPosition;
+                pivotPosition.y = Mathf.MoveTowards(pivotPosition.y, targetY, crouchTransitionSpeed * Time.deltaTime);
+                cameraPivot.localPosition = pivotPosition;
+            }
+
+            bool sprinting = keyboard != null && keyboard.leftShiftKey.isPressed && !IsCrouching;
             float speed = sprinting ? sprintSpeed : walkSpeed;
+            if (IsCrouching) speed *= crouchSpeedMultiplier;
 
             if (isGrounded && keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
             {

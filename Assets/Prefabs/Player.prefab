@@ -96,6 +96,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 33e02fc99eb32384c97f3cf6538f9d17, type: 3}
   m_Name:
   m_EditorClassIdentifier:
+  cameraPivot: {fileID: 2000002}
 --- !u!114 &1000012
 MonoBehaviour:
   m_ObjectHideFlags: 0
