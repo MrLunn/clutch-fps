@@ -127,11 +127,15 @@ namespace ClutchFPS.Player
                     }
                     break;
                 default: // Cross
-                    float gap = 4f;
-                    GUI.DrawTexture(new Rect(cx - size, cy - 1, size - gap, 2), Pixel);
-                    GUI.DrawTexture(new Rect(cx + gap, cy - 1, size - gap, 2), Pixel);
-                    GUI.DrawTexture(new Rect(cx - 1, cy - size, 2, size - gap), Pixel);
-                    GUI.DrawTexture(new Rect(cx - 1, cy + gap, 2, size - gap), Pixel);
+                    // The gap breathes with bloom: tight when accurate,
+                    // spread wide during sustained fire.
+                    float bloom = weaponController != null && weaponController.ActiveWeapon != null
+                        ? weaponController.ActiveWeapon.CurrentBloom : 0f;
+                    float gap = 4f + bloom * 14f;
+                    GUI.DrawTexture(new Rect(cx - size - bloom * 10f, cy - 1, size - 4f, 2), Pixel);
+                    GUI.DrawTexture(new Rect(cx + gap, cy - 1, size - 4f, 2), Pixel);
+                    GUI.DrawTexture(new Rect(cx - 1, cy - size - bloom * 10f, 2, size - 4f), Pixel);
+                    GUI.DrawTexture(new Rect(cx - 1, cy + gap, 2, size - 4f), Pixel);
                     break;
             }
             GUI.color = previous;
@@ -440,21 +444,28 @@ namespace ClutchFPS.Player
 
         private void DrawHitmarker()
         {
-            const float showDuration = 0.15f;
-            if (Time.time - HitFeedback.LastHitTime > showDuration) return;
+            // Kills flash longer and larger than plain hits; headshots go gold.
+            bool kill = Time.time - HitFeedback.LastKillTime < 0.35f;
+            const float hitDuration = 0.15f;
+            if (!kill && Time.time - HitFeedback.LastHitTime > hitDuration) return;
 
             float cx = Screen.width / 2f;
             float cy = Screen.height / 2f;
             var matrix = GUI.matrix;
             var previous = GUI.color;
             GUIUtility.RotateAroundPivot(45f, new Vector2(cx, cy));
-            GUI.color = new Color(1f, 0.25f, 0.2f);
-            const float len = 9f;
-            const float gap = 4f;
-            GUI.DrawTexture(new Rect(cx - len - gap, cy - 1, len, 2), Pixel);
-            GUI.DrawTexture(new Rect(cx + gap, cy - 1, len, 2), Pixel);
-            GUI.DrawTexture(new Rect(cx - 1, cy - len - gap, 2, len), Pixel);
-            GUI.DrawTexture(new Rect(cx - 1, cy + gap, 2, len), Pixel);
+
+            if (kill) GUI.color = new Color(1f, 0.1f, 0.1f);
+            else if (HitFeedback.LastHitWasHeadshot) GUI.color = new Color(1f, 0.8f, 0.15f);
+            else GUI.color = new Color(1f, 0.25f, 0.2f);
+
+            float len = kill ? 14f : 9f;
+            float gap = kill ? 6f : 4f;
+            float thick = kill ? 3f : 2f;
+            GUI.DrawTexture(new Rect(cx - len - gap, cy - thick / 2f, len, thick), Pixel);
+            GUI.DrawTexture(new Rect(cx + gap, cy - thick / 2f, len, thick), Pixel);
+            GUI.DrawTexture(new Rect(cx - thick / 2f, cy - len - gap, thick, len), Pixel);
+            GUI.DrawTexture(new Rect(cx - thick / 2f, cy + gap, thick, len), Pixel);
             GUI.color = previous;
             GUI.matrix = matrix;
         }

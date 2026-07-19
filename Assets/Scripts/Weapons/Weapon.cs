@@ -107,6 +107,9 @@ namespace ClutchFPS.Weapons
             _localBloom = Mathf.MoveTowards(_localBloom, 0f, recover);
         }
 
+        /// Owner-side bloom (0..1), read by the HUD to expand the crosshair.
+        public float CurrentBloom => _localBloom;
+
         public FireMode CurrentFireMode =>
             data.availableFireModes != null && data.availableFireModes.Length > 0
                 ? data.availableFireModes[Mathf.Clamp(_fireModeIndex, 0, data.availableFireModes.Length - 1)]
@@ -192,6 +195,8 @@ namespace ClutchFPS.Weapons
             Vector3 hitPoint = origin + spreadDirection * data.range;
 
             byte hitType = 0; // 0 = air, 1 = world, 2 = flesh
+            bool headshot = false;
+            bool killed = false;
             Vector3 hitNormal = -spreadDirection;
             if (Physics.Raycast(origin, spreadDirection, out RaycastHit hit, data.range, hittableMask))
             {
@@ -204,10 +209,12 @@ namespace ClutchFPS.Weapons
                     float damage = data.damage;
                     if (hit.collider.TryGetComponent<HitZone>(out var zone))
                     {
+                        headshot = true;
                         damage = zone.instantKill ? 99999f : damage * zone.damageMultiplier;
                     }
                     ulong attackerId = rpcParams.Receive.SenderClientId;
                     damageable.TakeDamage(damage, attackerId);
+                    killed = damageable is Health targetHealth && targetHealth.CurrentHealth <= 0f;
                 }
                 else
                 {
@@ -215,7 +222,7 @@ namespace ClutchFPS.Weapons
                 }
             }
 
-            HitEffectClientRpc(origin, hitPoint, hitNormal, hitType);
+            HitEffectClientRpc(origin, hitPoint, hitNormal, hitType, headshot, killed);
 
             if (_currentAmmo.Value <= 0)
             {
@@ -271,7 +278,8 @@ namespace ClutchFPS.Weapons
         }
 
         [ClientRpc]
-        private void HitEffectClientRpc(Vector3 origin, Vector3 hitPoint, Vector3 hitNormal, byte hitType)
+        private void HitEffectClientRpc(Vector3 origin, Vector3 hitPoint, Vector3 hitNormal,
+            byte hitType, bool headshot, bool killed)
         {
             // Tracer starts at this weapon's muzzle so it reads correctly from
             // every perspective, even though the actual ray came from the camera.
@@ -318,7 +326,9 @@ namespace ClutchFPS.Weapons
             }
             if (IsOwner && hitType == 2)
             {
-                HitFeedback.RegisterHit();
+                HitFeedback.RegisterHit(headshot, killed);
+                FeedbackAudio.PlayHit(muzzle, headshot);
+                if (killed) FeedbackAudio.PlayKill(muzzle);
             }
 
             _kick = 1f;
