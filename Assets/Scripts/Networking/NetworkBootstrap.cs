@@ -10,6 +10,12 @@ namespace ClutchFPS.Networking
     public class NetworkBootstrap : MonoBehaviour
     {
         private string _address = "127.0.0.1";
+        private string _name;
+
+        private void Awake()
+        {
+            _name = Player.PlayerIdentity.LocalName;
+        }
 
         private static UnityTransport GetTransport(NetworkManager networkManager)
         {
@@ -51,12 +57,13 @@ namespace ClutchFPS.Networking
             GUILayout.Label("CLUTCH FPS");
 
             GUILayout.Label("Name:");
-            Player.PlayerIdentity.LocalName =
-                GUILayout.TextField(Player.PlayerIdentity.LocalName, 20, GUILayout.Height(26));
+            // Edited freely (may be empty mid-edit); saved/sanitized only on connect.
+            _name = GUILayout.TextField(_name, 20, GUILayout.Height(26));
             GUILayout.Space(8);
 
             if (GUILayout.Button("Host", GUILayout.Height(36)))
             {
+                Player.PlayerIdentity.LocalName = _name;
                 // Listen on all interfaces so LAN/VPN clients can reach us.
                 GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
                 networkManager.StartHost();
@@ -67,6 +74,7 @@ namespace ClutchFPS.Networking
             _address = GUILayout.TextField(_address, GUILayout.Height(26));
             if (GUILayout.Button("Client", GUILayout.Height(36)))
             {
+                Player.PlayerIdentity.LocalName = _name;
                 GetTransport(networkManager)?.SetConnectionData(_address.Trim(), 7777);
                 networkManager.StartClient();
             }
