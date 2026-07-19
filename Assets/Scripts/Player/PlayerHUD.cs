@@ -174,15 +174,19 @@ namespace ClutchFPS.Player
         /// Esc menu: live per-weapon recoil/spread tuning. Edits the WeaponData
         /// ScriptableObject instances directly — in the editor the values stick
         /// (save the asset to keep them); in builds they last for the session.
+        private FirstPersonMovement _movement;
+
         private void DrawWeaponTuning()
         {
             if (weaponController == null) return;
+            if (_movement == null) _movement = weaponController.GetComponent<FirstPersonMovement>();
 
             Rect panel = new(Screen.width / 2f - 200, Screen.height / 2f - 190, 400, 380);
-            GUI.Box(panel, "WEAPON TUNING  (Esc to close)");
+            GUI.Box(panel, "TUNING  (Esc to close)");
             GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 30, panel.width - 30, panel.height - 45));
 
-            // Weapon tabs
+            // Tabs: one per weapon, plus Movement.
+            int movementTab = weaponController.SlotCount;
             GUILayout.BeginHorizontal();
             for (int i = 0; i < weaponController.SlotCount; i++)
             {
@@ -194,8 +198,20 @@ namespace ClutchFPS.Player
                     _tuningSlot = i;
                 }
             }
+            if (GUILayout.Toggle(_tuningSlot == movementTab, "Movement", GUI.skin.button)
+                && _tuningSlot != movementTab)
+            {
+                _tuningSlot = movementTab;
+            }
             GUILayout.EndHorizontal();
             GUILayout.Space(8);
+
+            if (_tuningSlot == movementTab)
+            {
+                DrawMovementTuning();
+                GUILayout.EndArea();
+                return;
+            }
 
             var weapon = weaponController.WeaponAt(_tuningSlot);
             if (weapon == null) { GUILayout.EndArea(); return; }
@@ -221,6 +237,39 @@ namespace ClutchFPS.Player
             data.fireRate = TuningSlider("Fire rate /s", data.fireRate, 1f, 20f);
 
             GUILayout.EndArea();
+        }
+
+        /// Movement tab: edits persist via PlayerPrefs (survive restarts and builds).
+        private void DrawMovementTuning()
+        {
+            if (_movement == null) return;
+
+            GUI.changed = false;
+            GUILayout.Label("— Speed —");
+            _movement.walkSpeed = TuningSlider("Walk speed", _movement.walkSpeed, 2f, 10f);
+            _movement.sprintSpeed = TuningSlider("Sprint speed", _movement.sprintSpeed, 4f, 14f);
+            _movement.jumpHeight = TuningSlider("Jump height", _movement.jumpHeight, 0.4f, 3f);
+
+            GUILayout.Space(6);
+            GUILayout.Label("— Weight —");
+            _movement.acceleration = TuningSlider("Acceleration", _movement.acceleration, 5f, 100f);
+            _movement.deceleration = TuningSlider("Deceleration", _movement.deceleration, 5f, 100f);
+            _movement.airControl = TuningSlider("Air control", _movement.airControl, 0f, 1f);
+
+            GUILayout.Space(6);
+            GUILayout.Label("— Camera feel —");
+            _movement.bobFrequency = TuningSlider("Bob frequency", _movement.bobFrequency, 0.5f, 4f);
+            _movement.bobAmplitude = TuningSlider("Bob amplitude", _movement.bobAmplitude, 0f, 0.12f);
+            _movement.landDipScale = TuningSlider("Land dip scale", _movement.landDipScale, 0f, 0.05f);
+            _movement.sprintFov = TuningSlider("Sprint FOV", _movement.sprintFov, 60f, 80f);
+
+            if (GUI.changed) _movement.SaveTuning();
+
+            GUILayout.Space(8);
+            if (GUILayout.Button("Reset movement to defaults"))
+            {
+                _movement.ResetTuning();
+            }
         }
 
         private void DrawDeathScreen()

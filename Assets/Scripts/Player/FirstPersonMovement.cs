@@ -7,25 +7,67 @@ namespace ClutchFPS.Player
     [RequireComponent(typeof(CharacterController))]
     public class FirstPersonMovement : NetworkBehaviour
     {
-        [SerializeField] private float walkSpeed = 5f;
-        [SerializeField] private float sprintSpeed = 8f;
-        [SerializeField] private float jumpHeight = 1.2f;
+        // Public so the Esc tuning menu can drive them live.
+        public float walkSpeed = 5f;
+        public float sprintSpeed = 8f;
+        public float jumpHeight = 1.2f;
         [SerializeField] private float gravity = -20f;
 
         [Header("Feel")]
         [Tooltip("How fast you reach top speed; lower = heavier start.")]
-        [SerializeField] private float acceleration = 40f;
+        public float acceleration = 40f;
         [Tooltip("How fast you stop; lower = more slide.")]
-        [SerializeField] private float deceleration = 50f;
+        public float deceleration = 50f;
         [Tooltip("Fraction of accel/decel available mid-air.")]
-        [SerializeField] private float airControl = 0.35f;
-        [SerializeField] private float bobFrequency = 1.9f;
-        [SerializeField] private float bobAmplitude = 0.04f;
+        public float airControl = 0.35f;
+        public float bobFrequency = 1.9f;
+        public float bobAmplitude = 0.04f;
         [Tooltip("Camera dip per m/s of landing impact.")]
-        [SerializeField] private float landDipScale = 0.014f;
-        [SerializeField] private float sprintFov = 67f;
+        public float landDipScale = 0.014f;
+        public float sprintFov = 67f;
         [SerializeField] private AudioClip walkLoop;
         [SerializeField] private AudioClip runLoop;
+
+        private float[] _tuningDefaults;
+
+        private static readonly string[] TuningKeys =
+        {
+            "mv_walk", "mv_sprint", "mv_jump", "mv_accel", "mv_decel",
+            "mv_air", "mv_bobf", "mv_boba", "mv_land", "mv_fov"
+        };
+
+        private float[] TuningValues
+        {
+            get => new[] { walkSpeed, sprintSpeed, jumpHeight, acceleration, deceleration,
+                airControl, bobFrequency, bobAmplitude, landDipScale, sprintFov };
+            set
+            {
+                walkSpeed = value[0]; sprintSpeed = value[1]; jumpHeight = value[2];
+                acceleration = value[3]; deceleration = value[4]; airControl = value[5];
+                bobFrequency = value[6]; bobAmplitude = value[7]; landDipScale = value[8];
+                sprintFov = value[9];
+            }
+        }
+
+        public void SaveTuning()
+        {
+            var values = TuningValues;
+            for (int i = 0; i < TuningKeys.Length; i++) PlayerPrefs.SetFloat(TuningKeys[i], values[i]);
+        }
+
+        public void LoadTuning()
+        {
+            if (!PlayerPrefs.HasKey(TuningKeys[0])) return;
+            var values = TuningValues;
+            for (int i = 0; i < TuningKeys.Length; i++) values[i] = PlayerPrefs.GetFloat(TuningKeys[i], values[i]);
+            TuningValues = values;
+        }
+
+        public void ResetTuning()
+        {
+            foreach (var key in TuningKeys) PlayerPrefs.DeleteKey(key);
+            if (_tuningDefaults != null) TuningValues = _tuningDefaults;
+        }
 
         [Header("Crouch")]
         [SerializeField] private Transform cameraPivot;
@@ -76,6 +118,9 @@ namespace ClutchFPS.Player
             _footstepSource.loop = true;
             _footstepSource.spatialBlend = 0f;
             _footstepSource.volume = 0.3f;
+
+            _tuningDefaults = TuningValues;
+            LoadTuning();
         }
 
         public override void OnNetworkSpawn()
