@@ -17,7 +17,26 @@ namespace ClutchFPS.Environment
         [SerializeField] private AnimationClip idleClip;
         [SerializeField] private AnimationClip walkClip;
         [SerializeField] private AnimationClip runClip;
+        [SerializeField] private AnimationClip deathClip;
         [SerializeField] private float runSpeedThreshold = 3.5f;
+
+        private bool _dead;
+
+        /// Plays the death clip once and stops locomotion updates. Falls back
+        /// to the caller's own handling if no death clip is assigned.
+        public bool PlayDeath()
+        {
+            if (deathClip == null || _animator == null) return false;
+            _dead = true;
+            PlayClip(deathClip);
+            return true;
+        }
+
+        public void ResetDeath()
+        {
+            _dead = false;
+            _currentClip = null;
+        }
 
         [Header("Procedural fallback")]
         [SerializeField] private Transform visualRoot;
@@ -41,6 +60,7 @@ namespace ClutchFPS.Environment
             if (visualRoot != null) _visualBasePosition = visualRoot.localPosition;
             _lastPosition = transform.position;
             _hasClips = idleClip != null || walkClip != null || runClip != null;
+            if (_hasClips) UpdateClips();
         }
 
         private void OnDestroy()
@@ -58,6 +78,7 @@ namespace ClutchFPS.Environment
             _speed = Mathf.Lerp(_speed, instantSpeed, 10f * Time.deltaTime);
             _lastPosition = transform.position;
 
+            if (_dead) return;
             if (_hasClips) UpdateClips();
             else UpdateProcedural();
         }
@@ -69,14 +90,18 @@ namespace ClutchFPS.Environment
                 : _speed >= runSpeedThreshold && runClip != null ? runClip
                 : walkClip != null ? walkClip : idleClip;
             if (wanted == null || wanted == _currentClip) return;
+            PlayClip(wanted);
+        }
 
+        private void PlayClip(AnimationClip clip)
+        {
             if (_graph.IsValid()) _graph.Destroy();
             _graph = PlayableGraph.Create($"{name}-Locomotion");
             var output = AnimationPlayableOutput.Create(_graph, "Locomotion", _animator);
-            var playable = AnimationClipPlayable.Create(_graph, wanted);
+            var playable = AnimationClipPlayable.Create(_graph, clip);
             output.SetSourcePlayable(playable);
             _graph.Play();
-            _currentClip = wanted;
+            _currentClip = clip;
         }
 
         /// No clips: fake a stride with a vertical bob and a slight forward

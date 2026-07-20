@@ -212,14 +212,29 @@ namespace ClutchFPS.Environment
             foreach (var collider in _colliders) collider.enabled = !dead;
             if (visual == null) return;
 
+            var animator = GetComponent<CharacterAnimator>();
             StopAllCoroutines();
-            if (dead) StartCoroutine(DeathFallRoutine());
+
+            if (dead)
+            {
+                // Prefer the authored death clip; fall back to the procedural
+                // topple if no clip is assigned.
+                if (animator != null && animator.PlayDeath()) StartCoroutine(HideAfterDeathRoutine());
+                else StartCoroutine(DeathFallRoutine());
+            }
             else
             {
+                animator?.ResetDeath();
                 visual.gameObject.SetActive(true);
                 visual.localRotation = Quaternion.identity;
                 visual.localPosition = Vector3.zero;
             }
+        }
+
+        private System.Collections.IEnumerator HideAfterDeathRoutine()
+        {
+            yield return new WaitForSeconds(3f);
+            visual.gameObject.SetActive(false);
         }
 
         /// Topple forward, sink slightly, then hide — reads far better than
