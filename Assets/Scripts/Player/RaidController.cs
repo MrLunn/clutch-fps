@@ -102,13 +102,17 @@ namespace ClutchFPS.Player
             {
                 lines.Add($"{Items.Get(ids[i]).Name} x{counts[i]}");
             }
-            SummaryClientRpc(lines.ToArray());
+            // Netcode can't serialize string[]; send one joined string.
+            SummaryClientRpc(string.Join("|", lines));
         }
 
         [ClientRpc]
-        private void SummaryClientRpc(string[] lines)
+        private void SummaryClientRpc(string joinedLines)
         {
             if (!IsOwner) return;
+            var lines = string.IsNullOrEmpty(joinedLines)
+                ? new string[0]
+                : joinedLines.Split('|');
             Summary = new RaidSummary
             {
                 Valid = true,
