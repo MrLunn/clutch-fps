@@ -209,8 +209,40 @@ namespace ClutchFPS.Environment
         [ClientRpc]
         private void SetDeadClientRpc(bool dead)
         {
-            if (visual != null) visual.gameObject.SetActive(!dead);
             foreach (var collider in _colliders) collider.enabled = !dead;
+            if (visual == null) return;
+
+            StopAllCoroutines();
+            if (dead) StartCoroutine(DeathFallRoutine());
+            else
+            {
+                visual.gameObject.SetActive(true);
+                visual.localRotation = Quaternion.identity;
+                visual.localPosition = Vector3.zero;
+            }
+        }
+
+        /// Topple forward, sink slightly, then hide — reads far better than
+        /// blinking out. Replaced by a real death clip when one is available.
+        private System.Collections.IEnumerator DeathFallRoutine()
+        {
+            const float fallTime = 0.55f;
+            Quaternion start = visual.localRotation;
+            Quaternion end = Quaternion.Euler(88f, 0f, 0f);
+            Vector3 startPos = visual.localPosition;
+            Vector3 endPos = startPos + Vector3.down * 0.15f;
+
+            for (float t = 0f; t < fallTime; t += Time.deltaTime)
+            {
+                float k = t / fallTime;
+                // Ease-in so it accelerates like a real fall.
+                visual.localRotation = Quaternion.Slerp(start, end, k * k);
+                visual.localPosition = Vector3.Lerp(startPos, endPos, k * k);
+                yield return null;
+            }
+            visual.localRotation = end;
+            yield return new WaitForSeconds(1.2f);
+            visual.gameObject.SetActive(false);
         }
     }
 
