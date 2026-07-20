@@ -40,7 +40,7 @@ namespace ClutchFPS.Environment
 
         [Header("Life")]
         [SerializeField] private float patrolRadius = 6f;
-        [SerializeField] private float respawnDelay = 12f;
+        [SerializeField] private float respawnDelay = 15f;
         [SerializeField] private Transform visual;
 
         private NavMeshAgent _agent;

@@ -126,7 +126,7 @@ MonoBehaviour:
   fireSound: {fileID: 8300000, guid: 9e9480b4d07646942b555fd43f2a0f71, type: 3}
   tracerMaterial: {fileID: 2100000, guid: c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5, type: 2}
   patrolRadius: 6
-  respawnDelay: 12
+  respawnDelay: 15
   visual: {fileID: 2000002}
 --- !u!1 &2000000
 GameObject:
