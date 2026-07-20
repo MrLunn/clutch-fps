@@ -93,9 +93,11 @@ namespace ClutchFPS.Weapons
             _modelAnimator = GetComponentInChildren<Animator>(true);
         }
 
-        private void OnDestroy()
+        public override void OnDestroy()
         {
             if (_animationGraph.IsValid()) _animationGraph.Destroy();
+            // Netcode does its own teardown here — must not be skipped.
+            base.OnDestroy();
         }
 
         /// Plays a clip from the weapon model's FBX (bolt/slide/mag motion)
