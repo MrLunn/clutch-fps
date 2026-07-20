@@ -1,3 +1,4 @@
+using ClutchFPS.Core;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
@@ -18,36 +19,40 @@ namespace ClutchFPS.Networking
             Player.DisplaySettings.ApplySavedIfAny();
         }
 
-        private static GUIStyle _logoStyle;
-        private static GUIStyle _tagStyle;
-
-        /// Wordmark above the menu, drawn procedurally so it needs no art.
+        /// Wordmark, drawn procedurally so it needs no art: a heavy CLUTCH in
+        /// accent with a lighter FPS, framed by rules and a spaced tagline.
         private static void DrawLogo()
         {
-            if (_logoStyle == null)
-            {
-                _logoStyle = new GUIStyle
-                {
-                    fontSize = 62,
-                    fontStyle = FontStyle.Bold,
-                    alignment = TextAnchor.MiddleCenter
-                };
-                _tagStyle = new GUIStyle
-                {
-                    fontSize = 15,
-                    alignment = TextAnchor.MiddleCenter
-                };
-            }
+            float centreY = Screen.height * 0.44f - 118f;
 
-            float y = Screen.height * 0.5f - 230f;
-            // Drop shadow, then the wordmark, then the tagline.
-            _logoStyle.normal.textColor = new Color(0f, 0f, 0f, 0.55f);
-            GUI.Label(new Rect(3, y + 3, Screen.width, 74), "CLUTCH", _logoStyle);
-            _logoStyle.normal.textColor = new Color(0.95f, 0.78f, 0.25f);
-            GUI.Label(new Rect(0, y, Screen.width, 74), "CLUTCH", _logoStyle);
+            var heavy = UITheme.Style(64, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.Accent);
+            var light = UITheme.Style(64, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextBright);
 
-            _tagStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
-            GUI.Label(new Rect(0, y + 66, Screen.width, 22), "EXTRACTION  ·  LOOT  ·  SURVIVE", _tagStyle);
+            const string main = "CLUTCH";
+            const string suffix = " FPS";
+            float mainWidth = heavy.CalcSize(new GUIContent(main)).x;
+            float suffixWidth = light.CalcSize(new GUIContent(suffix)).x;
+            float totalWidth = mainWidth + suffixWidth;
+            float startX = (Screen.width - totalWidth) / 2f;
+
+            // Shadow first, then the two-tone wordmark.
+            var shadow = UITheme.Style(64, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0f, 0f, 0f, 0.6f));
+            GUI.Label(new Rect(startX + 3f, centreY + 3f, totalWidth, 72f), main + suffix, shadow);
+            GUI.Label(new Rect(startX, centreY, mainWidth, 72f),
+                main, UITheme.Style(64, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.Accent));
+            GUI.Label(new Rect(startX + mainWidth, centreY, suffixWidth, 72f),
+                suffix, UITheme.Style(64, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextBright));
+
+            // Tagline with rules either side.
+            float tagY = centreY + 62f;
+            const string tagline = "E X T R A C T I O N     L O O T     S U R V I V E";
+            var tagStyle = UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim);
+            GUI.Label(new Rect(0, tagY, Screen.width, 20f), tagline, tagStyle);
+            float tagWidth = tagStyle.CalcSize(new GUIContent(tagline)).x;
+            float ruleY = tagY + 10f;
+            float gap = tagWidth / 2f + 18f;
+            UITheme.Fill(new Rect(Screen.width / 2f - gap - 60f, ruleY, 60f, 1f), UITheme.AccentDim);
+            UITheme.Fill(new Rect(Screen.width / 2f + gap, ruleY, 60f, 1f), UITheme.AccentDim);
         }
 
         private static UnityTransport GetTransport(NetworkManager networkManager)
@@ -81,59 +86,95 @@ namespace ClutchFPS.Networking
 
             if (networkManager.IsClient || networkManager.IsServer) return;
 
+            DrawBackdrop();
             DrawLogo();
+
             if (StashScreen.Open)
             {
                 StashScreen.Draw(Player.PlayerIdentity.LocalName);
                 return;
             }
 
-            // Centered so the buttons stay visible regardless of game-view
-            // zoom/aspect cropping at the screen edges.
-            float width = 240;
-            float height = 430;
-            GUILayout.BeginArea(new Rect(
-                (Screen.width - width) / 2f, (Screen.height - height) / 2f + 40f, width, height));
+            const float width = 380f;
+            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.44f, width, 268f);
+            UITheme.Panel3D(panel);
 
-            GUILayout.Label("Name:");
-            // Edited freely (may be empty mid-edit); saved/sanitized only on connect.
-            _name = GUILayout.TextField(_name, 20, GUILayout.Height(26));
-            GUILayout.Space(8);
+            float x = panel.x + 22f;
+            float w = panel.width - 44f;
+            float y = panel.y + 18f;
 
-            if (GUILayout.Button("Host", GUILayout.Height(36)))
+            UITheme.Header(new Rect(x, y, w, 18f), "Operator");
+            y += 24f;
+            _name = DrawField(new Rect(x, y, w, 30f), _name, 20);
+            y += 44f;
+
+            UITheme.Header(new Rect(x, y, w, 18f), "Deploy");
+            y += 26f;
+            if (UITheme.Button(new Rect(x, y, w, 40f), "Host Raid", primary: true))
             {
                 Player.PlayerIdentity.LocalName = _name;
                 // Listen on all interfaces so LAN/VPN clients can reach us.
                 GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
                 networkManager.StartHost();
             }
+            y += 48f;
 
-            GUILayout.Space(8);
-            GUILayout.Label("Host IP (for Client):");
-            _address = GUILayout.TextField(_address, GUILayout.Height(26));
-            if (GUILayout.Button("Client", GUILayout.Height(36)))
+            float ipWidth = w * 0.54f;
+            _address = DrawField(new Rect(x, y, ipWidth, 32f), _address, 24);
+            if (UITheme.Button(new Rect(x + ipWidth + 8f, y, w - ipWidth - 8f, 32f), "Join"))
             {
                 Player.PlayerIdentity.LocalName = _name;
                 GetTransport(networkManager)?.SetConnectionData(_address.Trim(), 7777);
                 networkManager.StartClient();
             }
+            y += 42f;
 
-            if (GUILayout.Button("Server", GUILayout.Height(30)))
-            {
-                GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
-                networkManager.StartServer();
-            }
-
-            GUILayout.Space(6);
-            if (GUILayout.Button("Stash", GUILayout.Height(30)))
+            float half = (w - 8f) / 2f;
+            if (UITheme.Button(new Rect(x, y, half, 32f), "Stash"))
             {
                 Player.PlayerIdentity.LocalName = _name;
                 StashScreen.Open = true;
             }
+            if (UITheme.Button(new Rect(x + half + 8f, y, half, 32f),
+                _settingsOpen ? "Close" : "Settings"))
+            {
+                _settingsOpen = !_settingsOpen;
+            }
 
-            GUILayout.Space(10);
+            if (_settingsOpen) DrawSettingsPanel(panel);
+
+            GUI.Label(new Rect(0, Screen.height - 28f, Screen.width, 20f),
+                "F1 CROSSHAIR   ·   TAB CHARACTER   ·   P PRACTICE   ·   E INTERACT",
+                UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
+        }
+
+        private bool _settingsOpen;
+
+        private static string DrawField(Rect rect, string value, int maxLength)
+        {
+            UITheme.Fill(rect, new Color(0.04f, 0.045f, 0.05f, 0.95f));
+            UITheme.Fill(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), UITheme.Line);
+            var style = UITheme.Style(14, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextBright);
+            style.padding = new RectOffset(10, 10, 0, 0);
+            return GUI.TextField(rect, value, maxLength, style);
+        }
+
+        private void DrawSettingsPanel(Rect anchor)
+        {
+            Rect panel = new(anchor.xMax + 14f, anchor.y, 300f, 268f);
+            UITheme.Panel3D(panel);
+            UITheme.Header(new Rect(panel.x + 18f, panel.y + 16f, panel.width - 36f, 18f), "Display");
+            GUILayout.BeginArea(new Rect(panel.x + 18f, panel.y + 44f, panel.width - 36f, panel.height - 60f));
             Player.DisplaySettings.DrawControls();
             GUILayout.EndArea();
+        }
+
+        /// Darkens the live 3D scene behind the menu and frames it.
+        private static void DrawBackdrop()
+        {
+            UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.02f, 0.025f, 0.03f, 0.55f));
+            UITheme.Fill(new Rect(0, 0, Screen.width, 3f), UITheme.Accent);
+            UITheme.Fill(new Rect(0, Screen.height - 3f, Screen.width, 3f), UITheme.AccentDim);
         }
     }
 }

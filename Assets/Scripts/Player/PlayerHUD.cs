@@ -602,53 +602,86 @@ namespace ClutchFPS.Player
         {
             EnsureStyles();
 
+            // Vitals block, bottom-left: big number plus a health bar that
+            // shifts amber then red as it drains.
             if (health != null)
             {
-                GUI.Box(new Rect(20, Screen.height - 50, 160, 30),
-                    $"HP  {Mathf.CeilToInt(health.CurrentHealth)} / {Mathf.CeilToInt(health.MaxHealth)}");
+                float fraction = health.MaxHealth > 0f ? health.CurrentHealth / health.MaxHealth : 0f;
+                Color healthColor = fraction > 0.6f ? Core.UITheme.Success
+                    : fraction > 0.3f ? Core.UITheme.Accent
+                    : Core.UITheme.Danger;
+
+                Rect block = new(28f, Screen.height - 86f, 220f, 58f);
+                Core.UITheme.Fill(new Rect(block.x, block.y, 3f, block.height), healthColor);
+                GUI.Label(new Rect(block.x + 12f, block.y - 2f, 120f, 34f),
+                    Mathf.CeilToInt(health.CurrentHealth).ToString(),
+                    Core.UITheme.Style(32, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextBright));
+                GUI.Label(new Rect(block.x + 12f + 56f, block.y + 8f, 80f, 20f), "HP",
+                    Core.UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+                Core.UITheme.Bar(new Rect(block.x + 12f, block.y + 36f, 190f, 6f), fraction, healthColor);
             }
 
             // BF-style loadout panel, bottom-right: weapon name, big ammo count,
             // fire mode, and the slot strip showing what you're carrying.
+            // Weapon block, bottom-right: rarity-tinted name, big mag count,
+            // dim reserve, fire mode, and a slot strip.
             var weapon = weaponController != null ? weaponController.ActiveWeapon : null;
             if (weapon != null)
             {
-                float right = Screen.width - 24;
-                float y = Screen.height - 108;
+                float right = Screen.width - 28f;
+                float y = Screen.height - 96f;
+                var rarityColor = Core.RarityColors.Get(weapon.Data.rarity);
 
-                _nameStyle.normal.textColor = Core.RarityColors.Get(weapon.Data.rarity);
-                GUI.Label(new Rect(right - 280, y, 280, 26), weapon.Data.weaponName.ToUpper(), _nameStyle);
+                GUI.Label(new Rect(right - 300f, y, 300f, 20f), weapon.Data.weaponName.ToUpper(),
+                    Core.UITheme.Style(15, FontStyle.Bold, TextAnchor.MiddleRight, rarityColor));
 
-                _ammoStyle.normal.textColor =
-                    weapon.CurrentAmmo == 0 ? new Color(1f, 0.35f, 0.3f) : Color.white;
-                string ammoText = weapon.IsReloading
-                    ? "RELOADING"
-                    : $"{weapon.CurrentAmmo}  |  {weapon.ReserveAmmo}";
-                GUI.Label(new Rect(right - 280, y + 26, 280, 32), ammoText, _ammoStyle);
+                if (weapon.IsReloading)
+                {
+                    GUI.Label(new Rect(right - 300f, y + 22f, 300f, 34f), "RELOADING",
+                        Core.UITheme.Style(26, FontStyle.Bold, TextAnchor.MiddleRight, Core.UITheme.Accent));
+                }
+                else
+                {
+                    var magColor = weapon.CurrentAmmo == 0 ? Core.UITheme.Danger : Core.UITheme.TextBright;
+                    string mag = weapon.CurrentAmmo.ToString();
+                    var magStyle = Core.UITheme.Style(34, FontStyle.Bold, TextAnchor.MiddleRight, magColor);
+                    string reserve = $" / {weapon.ReserveAmmo}";
+                    var reserveStyle = Core.UITheme.Style(16, FontStyle.Normal, TextAnchor.MiddleRight, Core.UITheme.TextDim);
+                    float reserveWidth = reserveStyle.CalcSize(new GUIContent(reserve)).x;
+                    GUI.Label(new Rect(right - 300f, y + 24f, 300f - reserveWidth, 36f), mag, magStyle);
+                    GUI.Label(new Rect(right - 300f, y + 32f, 300f, 24f), reserve, reserveStyle);
+                }
 
-                _smallStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
+                // Status line: fire mode, or a transient warning.
                 string modeText = weapon.CurrentFireMode.ToString().ToUpper();
-                if (Time.time - HitFeedback.MagFullTime < 1f) modeText = "MAG FULL";
+                Color modeColor = Core.UITheme.TextDim;
+                if (Time.time - HitFeedback.MagFullTime < 1f) { modeText = "MAG FULL"; modeColor = Core.UITheme.Accent; }
                 if (Time.time - HitFeedback.NoAmmoTime < 1f)
                 {
                     modeText = $"NO {Core.Items.Get(weapon.Data.ammoItemId).Name.ToUpper()}";
-                    _smallStyle.normal.textColor = new Color(1f, 0.4f, 0.3f);
+                    modeColor = Core.UITheme.Danger;
                 }
-                GUI.Label(new Rect(right - 280, y + 58, 280, 18), modeText, _smallStyle);
+                GUI.Label(new Rect(right - 300f, y + 62f, 300f, 18f), modeText,
+                    Core.UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleRight, modeColor));
 
-                // Slot strip: dim unowned, highlight active.
-                string strip = "";
-                for (int i = 0; i < weaponController.SlotCount; i++)
+                // Slot chips.
+                float chipW = 62f, chipH = 20f, gap = 6f;
+                int slots = weaponController.SlotCount;
+                float stripX = right - (chipW + gap) * slots + gap;
+                for (int i = 0; i < slots; i++)
                 {
                     var slotWeapon = weaponController.WeaponAt(i);
                     if (slotWeapon == null) continue;
-                    string label = $"{i + 1} {slotWeapon.Data.weaponName.ToUpper()}";
-                    if (!weaponController.OwnsSlot(i)) label = $"({label})";
-                    else if (i == weaponController.ActiveIndex) label = $"[{label}]";
-                    strip += (strip.Length > 0 ? "    " : "") + label;
+                    Rect chip = new(stripX + i * (chipW + gap), y + 82f, chipW, chipH);
+                    bool owned = weaponController.OwnsSlot(i);
+                    bool active = owned && i == weaponController.ActiveIndex;
+                    Core.UITheme.Fill(chip, active
+                        ? Core.UITheme.AccentDim
+                        : new Color(0.09f, 0.10f, 0.11f, owned ? 0.9f : 0.5f));
+                    GUI.Label(chip, $"{i + 1}",
+                        Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter,
+                            active ? Color.black : (owned ? Core.UITheme.TextBright : Core.UITheme.TextDim)));
                 }
-                _smallStyle.normal.textColor = new Color(0.9f, 0.9f, 0.9f);
-                GUI.Label(new Rect(right - 380, y + 78, 380, 18), strip, _smallStyle);
             }
 
             // Pickup prompt, lower-center, when standing at an interactable.
