@@ -112,15 +112,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d4, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  sightRange: 18
+  sightRange: 16
   attackRange: 13
   eyeHeight: 1.5
+  fieldOfViewDegrees: 110
+  memoryDuration: 4
   damage: 12
   fireCooldown: 1.2
   aimSpreadDegrees: 4
-  reactionTime: 0.6
-  aimErrorMetres: 0.55
-  missChance: 0.25
+  reactionTime: 0.95
+  aimErrorMetres: 0.8
+  missChance: 0.35
   burstSize: 3
   burstPause: 1.8
   fireSound: {fileID: 8300000, guid: 9e9480b4d07646942b555fd43f2a0f71, type: 3}

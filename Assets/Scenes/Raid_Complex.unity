@@ -261,10 +261,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d6, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  floorMaterial: {fileID: 2100000, guid: 10a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4, type: 2}
-  wallMaterial: {fileID: 2100000, guid: 20b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5, type: 2}
-  panelMaterial: {fileID: 2100000, guid: 30c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6, type: 2}
-  ceilingMaterial: {fileID: 2100000, guid: 50e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8, type: 2}
+  floorMaterial: {fileID: 2100000, guid: 11a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6, type: 2}
+  wallMaterial: {fileID: 2100000, guid: 22b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7, type: 2}
+  officeMaterial: {fileID: 2100000, guid: 33c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8, type: 2}
+  metalMaterial: {fileID: 2100000, guid: 44d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9, type: 2}
+  crateMaterial: {fileID: 2100000, guid: 55e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0, type: 2}
+  ceilingMaterial: {fileID: 2100000, guid: 66f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1, type: 2}
   neonCyan: {fileID: 2100000, guid: 60f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9, type: 2}
   neonPink: {fileID: 2100000, guid: 70a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0, type: 2}
   neonAmber: {fileID: 2100000, guid: 80b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1, type: 2}

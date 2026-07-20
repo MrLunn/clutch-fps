@@ -15,7 +15,9 @@ namespace ClutchFPS.Environment
         [Header("Materials")]
         [SerializeField] private Material floorMaterial;
         [SerializeField] private Material wallMaterial;
-        [SerializeField] private Material panelMaterial;
+        [SerializeField] private Material officeMaterial;
+        [SerializeField] private Material metalMaterial;
+        [SerializeField] private Material crateMaterial;
         [SerializeField] private Material ceilingMaterial;
         [SerializeField] private Material neonCyan;
         [SerializeField] private Material neonPink;
@@ -32,6 +34,7 @@ namespace ClutchFPS.Environment
             _root = new GameObject("GeneratedMap").transform;
             _root.SetParent(transform, false);
 
+            BuildLighting();
             BuildGround();
             BuildPerimeter();
             BuildWarehouse();
@@ -44,21 +47,48 @@ namespace ClutchFPS.Environment
         // ---------- primitives ----------
 
         private GameObject Box(string name, Vector3 position, Vector3 size, Material material,
-            bool collide = true, float yaw = 0f)
+            bool collide = true, float yaw = 0f, bool tile = true)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = name;
             go.transform.SetParent(_root, false);
             go.transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
             go.transform.localScale = size;
-            if (material != null) go.GetComponent<Renderer>().sharedMaterial = material;
+            var renderer = go.GetComponent<Renderer>();
+            if (material != null) renderer.sharedMaterial = material;
+            if (tile && material != null) ApplyTiling(renderer, size);
             if (!collide) Destroy(go.GetComponent<Collider>());
             return go;
         }
 
+        /// A cube's UVs run 0..1 per face regardless of how far it is stretched,
+        /// so a shared material would smear across a 90m floor. Scale the UVs
+        /// per object with a property block — the texture then reads at a
+        /// constant real-world size everywhere.
+        private static void ApplyTiling(Renderer renderer, Vector3 size)
+        {
+            const float metresPerTile = 4f;
+            // Flat slabs (floors, roofs) tile across their footprint; uprights
+            // tile across their length and height.
+            bool flat = size.y <= size.x && size.y <= size.z;
+            float u = (flat ? size.x : Mathf.Max(size.x, size.z)) / metresPerTile;
+            float v = (flat ? size.z : size.y) / metresPerTile;
+
+            _block ??= new MaterialPropertyBlock();
+            renderer.GetPropertyBlock(_block);
+            var st = new Vector4(Mathf.Max(u, 0.05f), Mathf.Max(v, 0.05f), 0f, 0f);
+            _block.SetVector(BaseMapST, st);
+            _block.SetVector(MainTexST, st);
+            renderer.SetPropertyBlock(_block);
+        }
+
+        private static MaterialPropertyBlock _block;
+        private static readonly int BaseMapST = Shader.PropertyToID("_BaseMap_ST");
+        private static readonly int MainTexST = Shader.PropertyToID("_MainTex_ST");
+
         private void Neon(string name, Vector3 position, Vector3 size, Material material, float yaw = 0f)
         {
-            var go = Box(name, position, size, material, collide: false, yaw: yaw);
+            var go = Box(name, position, size, material, collide: false, yaw: yaw, tile: false);
             var renderer = go.GetComponent<Renderer>();
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
@@ -123,6 +153,59 @@ namespace ClutchFPS.Environment
             }
         }
 
+        // ---------- lighting ----------
+
+        /// The scene ships with no lights of its own, so the whole rig lives
+        /// here: a cool key light for shape and shadow, a warm bounce fill so
+        /// unlit faces don't go black, and lamp posts that put readable pools
+        /// of light on the ground between zones.
+        private void BuildLighting()
+        {
+            var key = new GameObject("KeyLight");
+            key.transform.SetParent(_root, false);
+            key.transform.rotation = Quaternion.Euler(48f, 214f, 0f);
+            var keyLight = key.AddComponent<Light>();
+            keyLight.type = LightType.Directional;
+            keyLight.color = new Color(0.62f, 0.72f, 0.95f);
+            keyLight.intensity = 1.15f;
+            keyLight.shadows = LightShadows.Soft;
+            keyLight.shadowStrength = 0.72f;
+
+            var fill = new GameObject("FillLight");
+            fill.transform.SetParent(_root, false);
+            fill.transform.rotation = Quaternion.Euler(24f, 32f, 0f);
+            var fillLight = fill.AddComponent<Light>();
+            fillLight.type = LightType.Directional;
+            fillLight.color = new Color(1f, 0.78f, 0.6f);
+            fillLight.intensity = 0.42f;
+            fillLight.shadows = LightShadows.None;
+
+            // Lamp posts ring the open ground so the outdoor zones read at
+            // night without flooding them.
+            Vector3[] posts =
+            {
+                new(-12f, 0f, -18f), new(12f, 0f, -18f),
+                new(-14f, 0f, 20f), new(14f, 0f, 14f),
+                new(0f, 0f, -6f), new(-2f, 0f, 30f),
+                new(20f, 0f, 24f), new(-30f, 0f, -24f), new(30f, 0f, -26f)
+            };
+            foreach (var post in posts) LampPost(post);
+        }
+
+        /// A pole with an emissive head and a warm point light — cheap, but it
+        /// gives the eye something to read distance against.
+        private void LampPost(Vector3 basePosition)
+        {
+            Box("LampPole", basePosition + Vector3.up * 3f,
+                new Vector3(0.22f, 6f, 0.22f), metalMaterial);
+            Box("LampArm", basePosition + new Vector3(0.5f, 5.9f, 0f),
+                new Vector3(1.2f, 0.16f, 0.16f), metalMaterial);
+            Neon("LampHead", basePosition + new Vector3(1f, 5.75f, 0f),
+                new Vector3(0.7f, 0.2f, 0.5f), neonAmber);
+            ZoneLight(basePosition + new Vector3(1f, 5.6f, 0f),
+                new Color(1f, 0.86f, 0.66f), 3.2f, 20f);
+        }
+
         // ---------- zones ----------
 
         private void BuildGround()
@@ -153,15 +236,15 @@ namespace ClutchFPS.Environment
                 float x = centre.x - 12f + (float)rng.NextDouble() * 24f;
                 float z = centre.z - 14f + (float)rng.NextDouble() * 28f;
                 float h = 1.2f + (float)rng.NextDouble() * 1.6f;
-                Box("Crate", new Vector3(x, h / 2f, z), new Vector3(2f, h, 2f), panelMaterial,
+                Box("Crate", new Vector3(x, h / 2f, z), new Vector3(2f, h, 2f), crateMaterial,
                     yaw: (float)rng.NextDouble() * 40f);
             }
 
             // Raised catwalk along the back wall, reachable via a ramp.
             Box("Catwalk", new Vector3(centre.x - 10f, 3f, centre.z),
-                new Vector3(6f, 0.3f, 30f), panelMaterial);
+                new Vector3(6f, 0.3f, 30f), metalMaterial);
             Box("CatwalkRamp", new Vector3(centre.x - 4f, 1.5f, centre.z - 13f),
-                new Vector3(8f, 0.3f, 10f), panelMaterial, yaw: 0f).transform.Rotate(0f, 0f, -18f);
+                new Vector3(8f, 0.3f, 10f), metalMaterial, yaw: 0f).transform.Rotate(0f, 0f, -18f);
             Neon("NeonWarehouse", new Vector3(centre.x, 6.6f, centre.z),
                 new Vector3(0.3f, 0.15f, 30f), neonCyan);
             ZoneLight(new Vector3(centre.x, 5f, centre.z + 8f), new Color(0.3f, 0.8f, 1f), 2.2f, 26f);
@@ -178,7 +261,7 @@ namespace ClutchFPS.Environment
                 {
                     Vector3 c = origin + new Vector3(col * 13f, 0f, row * 13f);
                     Room(c, new Vector2(11f, 11f), doorSide: (col + row) % 4,
-                        wallMaterial, roof: true, height: 4f);
+                        officeMaterial, roof: true, height: 4f);
                     Neon("NeonOffice", c + Vector3.up * 3.7f,
                         new Vector3(8f, 0.12f, 0.2f), neonPink);
                     ZoneLight(c + Vector3.up * 3f, new Color(1f, 0.35f, 0.7f), 1.4f, 12f);
@@ -199,7 +282,7 @@ namespace ClutchFPS.Environment
                 for (int s = 0; s < stack; s++)
                 {
                     Box("Container", new Vector3(x, 1.4f + s * 2.8f, z),
-                        new Vector3(6f, 2.8f, 2.6f), panelMaterial,
+                        new Vector3(6f, 2.8f, 2.6f), metalMaterial,
                         yaw: rng.Next(0, 2) == 0 ? 0f : 90f);
                 }
                 if (stack > 1)
@@ -221,7 +304,7 @@ namespace ClutchFPS.Environment
                 float x = -8f + (float)rng.NextDouble() * 16f;
                 float z = -8f + (float)rng.NextDouble() * 16f;
                 Box("PlazaCover", new Vector3(x, 0.65f, z),
-                    new Vector3(2.4f, 1.3f, 1.2f), panelMaterial,
+                    new Vector3(2.4f, 1.3f, 1.2f), metalMaterial,
                     yaw: (float)rng.NextDouble() * 180f);
             }
             // Central pillar marks the plaza from a distance.
@@ -238,7 +321,7 @@ namespace ClutchFPS.Environment
             for (int i = -1; i <= 1; i += 2)
             {
                 Box("SpawnBlock", new Vector3(i * 12f, 1.2f, -34f),
-                    new Vector3(6f, 2.4f, 3f), panelMaterial);
+                    new Vector3(6f, 2.4f, 3f), metalMaterial);
                 Neon("NeonSpawnPost", new Vector3(i * 12f, 2.6f, -34f),
                     new Vector3(6.1f, 0.14f, 0.2f), neonPink);
             }

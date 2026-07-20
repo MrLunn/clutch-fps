@@ -16,9 +16,15 @@ namespace ClutchFPS.Environment
         public const ulong AiClientId = ulong.MaxValue;
 
         [Header("Senses")]
-        [SerializeField] private float sightRange = 18f;
+        [SerializeField] private float sightRange = 16f;
         [SerializeField] private float attackRange = 13f;
         [SerializeField] private float eyeHeight = 1.5f;
+        [Tooltip("Total vision cone. Outside it the enemy is blind, so flanking " +
+                 "and breaking contact actually work.")]
+        [SerializeField] private float fieldOfViewDegrees = 110f;
+        [Tooltip("How long an enemy keeps hunting after losing sight, before " +
+                 "giving up and returning to patrol.")]
+        [SerializeField] private float memoryDuration = 4f;
 
         [Header("Combat")]
         [SerializeField] private float damage = 12f;
@@ -26,12 +32,12 @@ namespace ClutchFPS.Environment
         [SerializeField] private float aimSpreadDegrees = 4f;
 
         [Tooltip("Seconds between spotting a target and the first shot.")]
-        [SerializeField] private float reactionTime = 0.6f;
+        [SerializeField] private float reactionTime = 0.95f;
         [Tooltip("Random aim error in metres at the target, independent of range — " +
                  "angular spread alone makes close-range shots unmissable.")]
-        [SerializeField] private float aimErrorMetres = 0.55f;
+        [SerializeField] private float aimErrorMetres = 0.8f;
         [Tooltip("Fraction of shots deliberately thrown wide.")]
-        [Range(0f, 1f)][SerializeField] private float missChance = 0.25f;
+        [Range(0f, 1f)][SerializeField] private float missChance = 0.35f;
         [Tooltip("Shots per burst before a longer pause.")]
         [SerializeField] private int burstSize = 3;
         [SerializeField] private float burstPause = 1.8f;
@@ -52,6 +58,8 @@ namespace ClutchFPS.Environment
         private PlayerRespawn _target;
         private PlayerRespawn _previousTarget;
         private float _targetAcquiredTime;
+        private float _lastSeenTime;
+        private Vector3 _lastKnownPosition;
         private int _shotsInBurst;
         private bool _dead;
 
@@ -87,7 +95,19 @@ namespace ClutchFPS.Environment
             if (Time.time >= _nextTargetScan)
             {
                 _nextTargetScan = Time.time + 0.5f;
-                _target = FindNearestPlayer();
+                var spotted = FindVisiblePlayer();
+                if (spotted != null)
+                {
+                    _target = spotted;
+                    _lastSeenTime = Time.time;
+                    _lastKnownPosition = spotted.transform.position;
+                }
+                else if (_target != null && Time.time > _lastSeenTime + memoryDuration)
+                {
+                    // Lost them for good — forget and go back to the patrol.
+                    _target = null;
+                }
+
                 // Freshly spotted targets get a reaction delay before fire.
                 if (_target != null && _target != _previousTarget)
                 {
@@ -105,7 +125,7 @@ namespace ClutchFPS.Environment
 
             Vector3 targetChest = _target.transform.position + Vector3.up * 1.2f;
             float distance = Vector3.Distance(transform.position, _target.transform.position);
-            bool visible = HasLineOfSight(targetChest);
+            bool visible = CanSee(_target);
 
             if (visible && distance <= attackRange)
             {
@@ -121,17 +141,21 @@ namespace ClutchFPS.Environment
                     FireAt(targetChest);
                 }
             }
-            else if (distance <= sightRange * 1.3f)
+            else if (visible)
             {
                 _agent.SetDestination(_target.transform.position);
             }
             else
             {
-                Patrol();
+                // Out of sight: search the last place they were actually seen,
+                // never their live position — that was the wallhack.
+                _agent.SetDestination(_lastKnownPosition);
             }
         }
 
-        private PlayerRespawn FindNearestPlayer()
+        /// The nearest player this enemy can genuinely see: in range, inside
+        /// the vision cone, and with clear line of sight.
+        private PlayerRespawn FindVisiblePlayer()
         {
             PlayerRespawn nearest = null;
             float best = sightRange;
@@ -141,22 +165,35 @@ namespace ClutchFPS.Environment
                 // Extracted players have left the raid.
                 if (player.TryGetComponent<RaidController>(out var raid) && raid.HasExtracted) continue;
                 float distance = Vector3.Distance(transform.position, player.transform.position);
-                if (distance < best)
-                {
-                    best = distance;
-                    nearest = player;
-                }
+                if (distance >= best) continue;
+                if (!CanSee(player)) continue;
+                best = distance;
+                nearest = player;
             }
             return nearest;
         }
 
-        private bool HasLineOfSight(Vector3 targetPoint)
+        private bool CanSee(PlayerRespawn player)
         {
+            if (player == null || player.IsDead) return false;
+
             Vector3 eye = transform.position + Vector3.up * eyeHeight;
-            Vector3 direction = targetPoint - eye;
+            Vector3 chest = player.transform.position + Vector3.up * 1.2f;
+            Vector3 direction = chest - eye;
+            if (direction.magnitude > sightRange) return false;
+
+            // Vision cone, measured flat so looking up or down doesn't matter.
+            Vector3 flat = direction;
+            flat.y = 0f;
+            if (flat.sqrMagnitude > 0.01f &&
+                Vector3.Angle(transform.forward, flat) > fieldOfViewDegrees * 0.5f)
+            {
+                return false;
+            }
+
             if (!Physics.Raycast(eye, direction.normalized, out RaycastHit hit,
                 direction.magnitude + 0.5f, ~(1 << 6))) return false;
-            return hit.collider.GetComponentInParent<PlayerRespawn>() == _target;
+            return hit.collider.GetComponentInParent<PlayerRespawn>() == player;
         }
 
         private void FaceTarget(Vector3 targetPoint)
