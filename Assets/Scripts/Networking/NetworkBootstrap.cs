@@ -18,6 +18,38 @@ namespace ClutchFPS.Networking
             Player.DisplaySettings.ApplySavedIfAny();
         }
 
+        private static GUIStyle _logoStyle;
+        private static GUIStyle _tagStyle;
+
+        /// Wordmark above the menu, drawn procedurally so it needs no art.
+        private static void DrawLogo()
+        {
+            if (_logoStyle == null)
+            {
+                _logoStyle = new GUIStyle
+                {
+                    fontSize = 62,
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                _tagStyle = new GUIStyle
+                {
+                    fontSize = 15,
+                    alignment = TextAnchor.MiddleCenter
+                };
+            }
+
+            float y = Screen.height * 0.5f - 230f;
+            // Drop shadow, then the wordmark, then the tagline.
+            _logoStyle.normal.textColor = new Color(0f, 0f, 0f, 0.55f);
+            GUI.Label(new Rect(3, y + 3, Screen.width, 74), "CLUTCH", _logoStyle);
+            _logoStyle.normal.textColor = new Color(0.95f, 0.78f, 0.25f);
+            GUI.Label(new Rect(0, y, Screen.width, 74), "CLUTCH", _logoStyle);
+
+            _tagStyle.normal.textColor = new Color(0.8f, 0.8f, 0.8f);
+            GUI.Label(new Rect(0, y + 66, Screen.width, 22), "EXTRACTION  ·  LOOT  ·  SURVIVE", _tagStyle);
+        }
+
         private static UnityTransport GetTransport(NetworkManager networkManager)
         {
             return networkManager.NetworkConfig.NetworkTransport as UnityTransport;
@@ -49,13 +81,19 @@ namespace ClutchFPS.Networking
 
             if (networkManager.IsClient || networkManager.IsServer) return;
 
+            DrawLogo();
+            if (StashScreen.Open)
+            {
+                StashScreen.Draw(Player.PlayerIdentity.LocalName);
+                return;
+            }
+
             // Centered so the buttons stay visible regardless of game-view
             // zoom/aspect cropping at the screen edges.
             float width = 240;
             float height = 430;
             GUILayout.BeginArea(new Rect(
-                (Screen.width - width) / 2f, (Screen.height - height) / 2f, width, height));
-            GUILayout.Label("CLUTCH FPS");
+                (Screen.width - width) / 2f, (Screen.height - height) / 2f + 40f, width, height));
 
             GUILayout.Label("Name:");
             // Edited freely (may be empty mid-edit); saved/sanitized only on connect.
@@ -84,6 +122,13 @@ namespace ClutchFPS.Networking
             {
                 GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
                 networkManager.StartServer();
+            }
+
+            GUILayout.Space(6);
+            if (GUILayout.Button("Stash", GUILayout.Height(30)))
+            {
+                Player.PlayerIdentity.LocalName = _name;
+                StashScreen.Open = true;
             }
 
             GUILayout.Space(10);

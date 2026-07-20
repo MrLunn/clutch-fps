@@ -210,9 +210,14 @@ namespace ClutchFPS.Player
                         continue;
                     }
                     var ammoInfo = Core.Items.Get(slotWeapon.Data.ammoItemId);
+                    GUILayout.BeginHorizontal();
+                    Rect wIcon = GUILayoutUtility.GetRect(40, 30, GUILayout.Width(40));
+                    Core.IconLibrary.Draw(wIcon, Core.IconLibrary.Weapon(slotWeapon.VariantIndex >= 0
+                        ? slotWeapon.VariantIndex : i), Core.RarityColors.Get(slotWeapon.Data.rarity));
                     GUILayout.Label(
-                        $"[{i + 1}] {slotWeapon.Data.weaponName}   {slotWeapon.CurrentAmmo}/{slotWeapon.Data.magazineSize}");
-                    GUILayout.Label($"      {ammoInfo.Name}: {slotWeapon.ReserveAmmo} reserve", _smallStyle);
+                        $" [{i + 1}] {slotWeapon.Data.weaponName}\n {slotWeapon.CurrentAmmo}/{slotWeapon.Data.magazineSize}  ·  {slotWeapon.ReserveAmmo} {ammoInfo.Name}",
+                        _smallStyle, GUILayout.Height(30));
+                    GUILayout.EndHorizontal();
                 }
             }
             GUILayout.EndArea();
@@ -233,18 +238,24 @@ namespace ClutchFPS.Player
                     var info = Core.Items.Get(slot.ItemId);
                     var prev = GUI.backgroundColor;
                     GUI.backgroundColor = info.Tint;
-                    string label = $"{info.Name}\nx{slot.Count}";
+
+                    Rect cell = GUILayoutUtility.GetRect(98, 44, GUILayout.Width(98), GUILayout.Height(44));
+                    bool clicked = false;
                     if (info.Usable)
                     {
-                        if (GUILayout.Button(label, GUILayout.Width(98), GUILayout.Height(44)))
-                        {
-                            inventory.UseItemServerRpc(j);
-                        }
+                        clicked = GUI.Button(cell, GUIContent.none);
                     }
                     else
                     {
-                        GUILayout.Box(label, GUILayout.Width(98), GUILayout.Height(44));
+                        GUI.Box(cell, GUIContent.none);
                     }
+
+                    // Icon on the left of the cell, name/count on the right.
+                    Core.IconLibrary.Draw(new Rect(cell.x + 4, cell.y + 6, 32, 32),
+                        Core.IconLibrary.Item(slot.ItemId), info.Tint);
+                    GUI.Label(new Rect(cell.x + 40, cell.y + 4, 56, 36), $"{info.Name}\nx{slot.Count}", _smallStyle);
+
+                    if (clicked) inventory.UseItemServerRpc(j);
                     GUI.backgroundColor = prev;
                 }
                 GUILayout.EndHorizontal();
