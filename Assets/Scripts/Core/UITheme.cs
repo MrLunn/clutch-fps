@@ -92,6 +92,57 @@ namespace ClutchFPS.Core
             Fill(new Rect(rect.x, rect.yMax - 1, rect.width, 1), Line);
         }
 
+        /// Labelled slider with the value shown on the right.
+        public static float Slider(Rect rect, string label, float value, float min, float max, string format = "0.00")
+        {
+            GUI.Label(new Rect(rect.x, rect.y, rect.width - 60f, 18f), label,
+                Style(12, FontStyle.Normal, TextAnchor.MiddleLeft, TextDim));
+            GUI.Label(new Rect(rect.x, rect.y, rect.width, 18f), value.ToString(format),
+                Style(12, FontStyle.Bold, TextAnchor.MiddleRight, TextBright));
+
+            Rect track = new(rect.x, rect.y + 22f, rect.width, 4f);
+            float fill = Mathf.InverseLerp(min, max, value);
+            Fill(track, new Color(0.05f, 0.05f, 0.06f));
+            Fill(new Rect(track.x, track.y, track.width * fill, track.height), Accent);
+
+            // Knob, then an invisible slider on top for the actual interaction.
+            Fill(new Rect(track.x + track.width * fill - 3f, track.y - 5f, 6f, 14f), TextBright);
+            return GUI.HorizontalSlider(new Rect(rect.x, rect.y + 16f, rect.width, 16f),
+                value, min, max, GUIStyle.none, GUIStyle.none);
+        }
+
+        /// Checkbox-style toggle.
+        public static bool Toggle(Rect rect, string label, bool value)
+        {
+            Rect box = new(rect.x, rect.y + rect.height / 2f - 7f, 14f, 14f);
+            Fill(box, value ? Accent : new Color(0.05f, 0.05f, 0.06f));
+            Fill(new Rect(box.x, box.y, box.width, 1f), Line);
+            Fill(new Rect(box.x, box.yMax - 1f, box.width, 1f), Line);
+            Fill(new Rect(box.x, box.y, 1f, box.height), Line);
+            Fill(new Rect(box.xMax - 1f, box.y, 1f, box.height), Line);
+            GUI.Label(new Rect(rect.x + 22f, rect.y, rect.width - 22f, rect.height), label,
+                Style(12, FontStyle.Normal, TextAnchor.MiddleLeft, TextBright));
+            return GUI.Button(rect, GUIContent.none, GUIStyle.none) ? !value : value;
+        }
+
+        /// Segmented control; returns the newly selected index.
+        public static int Segmented(Rect rect, string[] options, int selected)
+        {
+            float w = (rect.width - (options.Length - 1) * 4f) / options.Length;
+            int result = selected;
+            for (int i = 0; i < options.Length; i++)
+            {
+                Rect cell = new(rect.x + i * (w + 4f), rect.y, w, rect.height);
+                bool active = i == selected;
+                bool hover = cell.Contains(Event.current.mousePosition);
+                Fill(cell, active ? AccentDim : (hover ? PanelLight : new Color(0.09f, 0.10f, 0.11f)));
+                GUI.Label(cell, options[i], Style(11, FontStyle.Bold, TextAnchor.MiddleCenter,
+                    active ? Color.black : TextBright));
+                if (GUI.Button(cell, GUIContent.none, GUIStyle.none)) result = i;
+            }
+            return result;
+        }
+
         private static readonly System.Collections.Generic.Dictionary<int, GUIStyle> StyleCache = new();
 
         public static GUIStyle Style(int size, FontStyle fontStyle, TextAnchor anchor, Color color)

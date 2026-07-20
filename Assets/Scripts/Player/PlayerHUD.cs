@@ -431,25 +431,36 @@ namespace ClutchFPS.Player
             var players = Object.FindObjectsByType<PlayerRespawn>(FindObjectsSortMode.None);
             System.Array.Sort(players, (a, b) => b.Kills.Value.CompareTo(a.Kills.Value));
 
-            float height = 60 + players.Length * 24;
-            Rect panel = new(Screen.width / 2f - 180, Screen.height * 0.2f, 360, height);
-            GUI.Box(panel, "SCOREBOARD");
+            float height = 76f + players.Length * 28f;
+            Rect panel = new(Screen.width / 2f - 190f, Screen.height * 0.18f, 380f, height);
+            UITheme.Panel3D(panel);
 
-            _smallStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
-            GUI.Label(new Rect(panel.x + 20, panel.y + 28, 200, 20), "PLAYER", _smallStyle);
-            GUI.Label(new Rect(panel.x + 220, panel.y + 28, 50, 20), "K", _smallStyle);
-            GUI.Label(new Rect(panel.x + 280, panel.y + 28, 50, 20), "D", _smallStyle);
+            GUI.Label(new Rect(panel.x + 20f, panel.y + 12f, panel.width - 40f, 22f), "SCOREBOARD",
+                UITheme.Style(15, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextBright));
 
-            float rowY = panel.y + 52;
+            float rowX = panel.x + 20f;
+            float rowW = panel.width - 40f;
+            GUI.Label(new Rect(rowX, panel.y + 38f, rowW - 100f, 18f), "OPERATOR",
+                UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
+            GUI.Label(new Rect(rowX + rowW - 96f, panel.y + 38f, 40f, 18f), "K",
+                UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
+            GUI.Label(new Rect(rowX + rowW - 48f, panel.y + 38f, 40f, 18f), "D",
+                UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
+            UITheme.Fill(new Rect(rowX, panel.y + 56f, rowW, 1f), UITheme.Line);
+
+            float y = panel.y + 62f;
             foreach (var player in players)
             {
                 bool isSelf = player.IsOwner;
-                _smallStyle.normal.textColor = isSelf ? new Color(0.5f, 0.85f, 1f) : Color.white;
-                GUI.Label(new Rect(panel.x + 20, rowY, 200, 20),
-                    $"{player.ResolvedName}{(isSelf ? " (you)" : "")}", _smallStyle);
-                GUI.Label(new Rect(panel.x + 220, rowY, 50, 20), player.Kills.Value.ToString(), _smallStyle);
-                GUI.Label(new Rect(panel.x + 280, rowY, 50, 20), player.Deaths.Value.ToString(), _smallStyle);
-                rowY += 24;
+                if (isSelf) UITheme.Fill(new Rect(rowX - 6f, y, rowW + 12f, 26f), new Color(0.95f, 0.71f, 0.22f, 0.10f));
+                var nameColor = isSelf ? UITheme.Accent : UITheme.TextBright;
+                GUI.Label(new Rect(rowX, y, rowW - 100f, 26f), player.ResolvedName,
+                    UITheme.Style(13, isSelf ? FontStyle.Bold : FontStyle.Normal, TextAnchor.MiddleLeft, nameColor));
+                GUI.Label(new Rect(rowX + rowW - 96f, y, 40f, 26f), player.Kills.Value.ToString(),
+                    UITheme.Style(13, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextBright));
+                GUI.Label(new Rect(rowX + rowW - 48f, y, 40f, 26f), player.Deaths.Value.ToString(),
+                    UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
+                y += 28f;
             }
             _smallStyle.alignment = TextAnchor.MiddleRight;
         }
@@ -719,40 +730,56 @@ namespace ClutchFPS.Player
 
         private void DrawSettings()
         {
-            Rect panel = new(Screen.width / 2f - 150, Screen.height / 2f - 240, 300, 480);
-            GUI.Box(panel, "Settings  (F1 to close)");
+            const float panelW = 340f, panelH = 430f;
+            Rect panel = new(Screen.width / 2f - panelW / 2f, Screen.height / 2f - panelH / 2f, panelW, panelH);
+            UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.55f));
+            UITheme.Panel3D(panel);
 
-            GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 30, panel.width - 30, panel.height - 45));
+            GUI.Label(new Rect(panel.x + 20f, panel.y + 14f, panel.width - 40f, 22f), "SETTINGS",
+                UITheme.Style(16, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextBright));
+            GUI.Label(new Rect(panel.x + 20f, panel.y + 14f, panel.width - 40f, 22f), "F1",
+                UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleRight, UITheme.TextDim));
 
-            GUILayout.Label($"Style: {CrosshairSettings.Style}");
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Cross")) CrosshairSettings.Style = CrosshairStyle.Cross;
-            if (GUILayout.Button("Dot")) CrosshairSettings.Style = CrosshairStyle.Dot;
-            if (GUILayout.Button("Circle")) CrosshairSettings.Style = CrosshairStyle.Circle;
-            GUILayout.EndHorizontal();
+            float x = panel.x + 20f;
+            float w = panel.width - 40f;
+            float y = panel.y + 46f;
 
-            GUILayout.Label($"Size: {CrosshairSettings.Size:0}");
-            CrosshairSettings.Size = GUILayout.HorizontalSlider(CrosshairSettings.Size, 4f, 40f);
+            UITheme.Header(new Rect(x, y, w, 18f), "Crosshair");
+            y += 26f;
+            CrosshairSettings.Style = (CrosshairStyle)UITheme.Segmented(new Rect(x, y, w, 26f),
+                new[] { "CROSS", "DOT", "CIRCLE" }, (int)CrosshairSettings.Style);
+            y += 36f;
+            CrosshairSettings.Size = UITheme.Slider(new Rect(x, y, w, 30f), "Size", CrosshairSettings.Size, 4f, 40f, "0");
+            y += 40f;
 
-            GUILayout.Label($"Color: {CrosshairSettings.ColorNames[CrosshairSettings.ColorIndex]}");
-            GUILayout.BeginHorizontal();
+            GUI.Label(new Rect(x, y, w, 18f), "Colour",
+                UITheme.Style(12, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextDim));
+            y += 20f;
+            float swatch = (w - 5f * 6f) / 6f;
             for (int i = 0; i < CrosshairSettings.Colors.Length; i++)
             {
-                var prev = GUI.backgroundColor;
-                GUI.backgroundColor = CrosshairSettings.Colors[i];
-                if (GUILayout.Button(" ")) CrosshairSettings.ColorIndex = i;
-                GUI.backgroundColor = prev;
+                Rect cell = new(x + i * (swatch + 6f), y, swatch, 22f);
+                UITheme.Fill(cell, CrosshairSettings.Colors[i]);
+                if (i == CrosshairSettings.ColorIndex)
+                {
+                    UITheme.Fill(new Rect(cell.x, cell.yMax + 2f, cell.width, 2f), UITheme.Accent);
+                }
+                if (GUI.Button(cell, GUIContent.none, GUIStyle.none)) CrosshairSettings.ColorIndex = i;
             }
-            GUILayout.EndHorizontal();
+            y += 40f;
 
-            GUILayout.Space(10);
-            GUILayout.Label($"Mouse sensitivity: {MouseSettings.Sensitivity:0.00}");
-            MouseSettings.Sensitivity = GUILayout.HorizontalSlider(MouseSettings.Sensitivity, 0.02f, 0.5f);
-            MouseSettings.InvertY = GUILayout.Toggle(MouseSettings.InvertY, " Invert Y axis");
+            UITheme.Header(new Rect(x, y, w, 18f), "Mouse");
+            y += 26f;
+            MouseSettings.Sensitivity = UITheme.Slider(new Rect(x, y, w, 30f),
+                "Sensitivity", MouseSettings.Sensitivity, 0.02f, 0.5f);
+            y += 38f;
+            MouseSettings.InvertY = UITheme.Toggle(new Rect(x, y, w, 20f), "Invert Y axis", MouseSettings.InvertY);
+            y += 32f;
 
-            GUILayout.Space(10);
+            UITheme.Header(new Rect(x, y, w, 18f), "Display");
+            y += 26f;
+            GUILayout.BeginArea(new Rect(x, y, w, panel.yMax - y - 16f));
             DisplaySettings.DrawControls();
-
             GUILayout.EndArea();
         }
     }
