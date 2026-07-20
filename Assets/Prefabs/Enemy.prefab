@@ -285,10 +285,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b9c0d1e2f3a4b5c6d7e8f90a1b2c3d4, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  idleClip: {fileID: 7400000, guid: e21df18705c1a7d44845945b7716b86f, type: 3}
-  walkClip: {fileID: 7400000, guid: 828c69fa7c0607c41958ebc669bd4ab4, type: 3}
-  runClip: {fileID: 7400000, guid: 67503109551d1ec40aad6782b0e8e9ed, type: 3}
-  deathClip: {fileID: 7400000, guid: e024316ddbecd75488279243f0bb426f, type: 3}
+  idleClipPath: Animations/X Bot@Idle
+  walkClipPath: Animations/X Bot@Walking
+  runClipPath: Animations/X Bot@Running
+  deathClipPath: Animations/X Bot@Death
+  idleClip: {fileID: 0}
+  walkClip: {fileID: 0}
+  runClip: {fileID: 0}
+  deathClip: {fileID: 0}
   runSpeedThreshold: 3.5
   visualRoot: {fileID: 2000002}
   bobHeight: 0.06
