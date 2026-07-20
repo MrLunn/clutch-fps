@@ -227,6 +227,7 @@ namespace ClutchFPS.Player
             if (!IsOwner) return;
             if (_respawn == null) _respawn = GetComponent<PlayerRespawn>();
             if (_respawn != null && _respawn.IsDead) return;
+            if (PlayerHUD.LocalMenuOpen) return;
 
             Vector2 moveInput = Vector2.zero;
             var keyboard = Keyboard.current;

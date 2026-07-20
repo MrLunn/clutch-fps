@@ -24,6 +24,21 @@ namespace ClutchFPS.Player
 
         public bool HasExtracted => _extracted.Value;
 
+        /// Raid summary, filled on the owning client when extraction succeeds.
+        public struct RaidSummary
+        {
+            public bool Valid;
+            public float Duration;
+            public int Kills;
+            public int ItemsOut;
+            public string[] Lines;
+        }
+
+        public RaidSummary Summary;
+
+        private float _raidStartTime;
+        private int _startingKills;
+
         private void Awake()
         {
             _inventory = GetComponent<PlayerInventory>();
@@ -33,6 +48,8 @@ namespace ClutchFPS.Player
 
         public override void OnNetworkSpawn()
         {
+            _raidStartTime = Time.time;
+            if (IsOwner && _respawn != null) _startingKills = _respawn.Kills.Value;
             if (!IsServer) return;
             // The name variable may not be replicated yet; poll briefly.
             Invoke(nameof(LoadStashServer), 0.5f);
@@ -72,14 +89,34 @@ namespace ClutchFPS.Player
                 itemCounts = counts
             });
             _extracted.Value = true;
-            FreezeExtractedClientRpc();
+
+            // Build the human-readable haul for the summary screen.
+            var lines = new System.Collections.Generic.List<string>();
+            for (int slot = 0; slot < _weapons.SlotCount; slot++)
+            {
+                if (!_weapons.OwnsSlot(slot)) continue;
+                var weapon = _weapons.WeaponAt(slot);
+                if (weapon != null) lines.Add($"{weapon.Data.weaponName}");
+            }
+            for (int i = 0; i < ids.Length; i++)
+            {
+                lines.Add($"{Items.Get(ids[i]).Name} x{counts[i]}");
+            }
+            SummaryClientRpc(lines.ToArray());
         }
 
         [ClientRpc]
-        private void FreezeExtractedClientRpc()
+        private void SummaryClientRpc(string[] lines)
         {
-            // Owner stops receiving gameplay input via PlayerHUD.LocalMenuOpen-
-            // style gating is handled by the HUD reading HasExtracted.
+            if (!IsOwner) return;
+            Summary = new RaidSummary
+            {
+                Valid = true,
+                Duration = Time.time - _raidStartTime,
+                Kills = _respawn != null ? _respawn.Kills.Value - _startingKills : 0,
+                ItemsOut = lines.Length,
+                Lines = lines
+            };
         }
     }
 }

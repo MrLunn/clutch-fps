@@ -28,9 +28,21 @@ namespace ClutchFPS.Player
         /// (look, fire, interact) checks this and stands down.
         public static bool LocalMenuOpen { get; private set; }
 
+        private bool _wasExtracted;
+
         private void Update()
         {
             if (!IsOwner) return;
+
+            // Extraction ends the raid for this player: free the cursor and
+            // stop gameplay input (LocalMenuOpen gates look/fire/interact).
+            if (raid != null && raid.HasExtracted != _wasExtracted)
+            {
+                _wasExtracted = raid.HasExtracted;
+                ApplyCursorState();
+            }
+            if (raid != null && raid.HasExtracted) return;
+
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
@@ -62,7 +74,8 @@ namespace ClutchFPS.Player
 
         private void ApplyCursorState()
         {
-            bool anyMenu = _settingsOpen || _tuningOpen || _inventoryOpen;
+            bool anyMenu = _settingsOpen || _tuningOpen || _inventoryOpen
+                || (raid != null && raid.HasExtracted);
             LocalMenuOpen = anyMenu;
             Cursor.lockState = anyMenu ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = anyMenu;
@@ -282,17 +295,7 @@ namespace ClutchFPS.Player
 
             if (raid != null && raid.HasExtracted)
             {
-                var previous = GUI.color;
-                GUI.color = new Color(0f, 0.1f, 0f, 0.6f);
-                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Pixel);
-                GUI.color = previous;
-                _promptStyle.fontSize = 40;
-                _promptStyle.normal.textColor = new Color(0.4f, 1f, 0.5f);
-                GUI.Label(new Rect(0, Screen.height / 2f - 50, Screen.width, 50), "EXTRACTED", _promptStyle);
-                _promptStyle.fontSize = 18;
-                _promptStyle.normal.textColor = Color.white;
-                GUI.Label(new Rect(0, Screen.height / 2f + 6, Screen.width, 30),
-                    "Your gear is safe in your stash.", _promptStyle);
+                DrawRaidSummary();
                 return;
             }
 
@@ -310,6 +313,67 @@ namespace ClutchFPS.Player
             _promptStyle.normal.textColor = Color.white;
             GUI.Label(new Rect(x, y, w, h), "EXTRACTING...", _promptStyle);
             _promptStyle.fontSize = 18;
+        }
+
+        /// Post-raid results screen: the haul, the stats, and the way out.
+        private void DrawRaidSummary()
+        {
+            EnsureStyles();
+            var summary = raid.Summary;
+
+            var previous = GUI.color;
+            GUI.color = new Color(0.02f, 0.06f, 0.03f, 0.88f);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Pixel);
+            GUI.color = previous;
+
+            _promptStyle.fontSize = 44;
+            _promptStyle.normal.textColor = new Color(0.45f, 1f, 0.55f);
+            GUI.Label(new Rect(0, Screen.height * 0.12f, Screen.width, 56), "EXTRACTION SUCCESSFUL", _promptStyle);
+            _promptStyle.fontSize = 18;
+
+            Rect panel = new(Screen.width / 2f - 260, Screen.height * 0.24f, 520, Screen.height * 0.5f);
+            GUI.Box(panel, "RAID REPORT");
+            GUILayout.BeginArea(new Rect(panel.x + 24, panel.y + 36, panel.width - 48, panel.height - 56));
+
+            _smallStyle.alignment = TextAnchor.MiddleLeft;
+            _smallStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+
+            int minutes = Mathf.FloorToInt(summary.Duration / 60f);
+            int seconds = Mathf.FloorToInt(summary.Duration % 60f);
+            GUILayout.Label($"Survived:   {minutes}:{seconds:00}", _smallStyle);
+            GUILayout.Label($"Kills this raid:   {summary.Kills}", _smallStyle);
+            if (practice != null && practice.BestScore > 0)
+            {
+                GUILayout.Label($"Best practice run:   {practice.BestScore}", _smallStyle);
+            }
+
+            GUILayout.Space(14);
+            _smallStyle.normal.textColor = new Color(0.45f, 1f, 0.55f);
+            GUILayout.Label("SECURED IN STASH", _smallStyle);
+            _smallStyle.normal.textColor = Color.white;
+
+            if (summary.Lines != null)
+            {
+                foreach (var line in summary.Lines)
+                {
+                    GUILayout.Label($"   • {line}", _smallStyle);
+                }
+            }
+
+            GUILayout.FlexibleSpace();
+            _smallStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+            GUILayout.Label("This gear is kept for your next raid.", _smallStyle);
+            GUILayout.EndArea();
+            _smallStyle.alignment = TextAnchor.MiddleRight;
+
+            // Exit back to the connect menu.
+            Rect button = new(Screen.width / 2f - 110, panel.yMax + 24, 220, 44);
+            if (GUI.Button(button, "LEAVE RAID"))
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
+            }
         }
 
         private void DrawKillFeed()
