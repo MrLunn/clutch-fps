@@ -91,8 +91,11 @@ namespace ClutchFPS.Player
                 return;
             }
 
-            // Crosshair hides while aiming down sights; hitmarkers stay.
-            if (weaponController == null || !weaponController.IsAiming) DrawCrosshair();
+            // Aiming swaps the full crosshair for a tight reticle rather than
+            // removing it — the view models carry no sights of their own, so
+            // hiding it outright left you aiming at nothing.
+            if (weaponController != null && weaponController.IsAiming) DrawAimReticle();
+            else DrawCrosshair();
             DrawHitmarker();
             DrawStatus();
             DrawKillFeed();
@@ -116,6 +119,40 @@ namespace ClutchFPS.Player
                 }
                 return _pixel;
             }
+        }
+
+        /// Aimed reticle: a centre dot inside a thin ring, with four short
+        /// ticks. Deliberately smaller and quieter than the hipfire crosshair
+        /// so ADS still reads as the precise state.
+        private void DrawAimReticle()
+        {
+            float cx = Screen.width / 2f;
+            float cy = Screen.height / 2f;
+            Color previous = GUI.color;
+            Color colour = CrosshairSettings.Color;
+
+            GUI.color = colour;
+            GUI.DrawTexture(new Rect(cx - 1.5f, cy - 1.5f, 3f, 3f), Pixel);
+
+            // Ring, dimmed so the dot stays the thing your eye lands on.
+            GUI.color = new Color(colour.r, colour.g, colour.b, colour.a * 0.55f);
+            const float radius = 9f;
+            const int steps = 28;
+            for (int i = 0; i < steps; i++)
+            {
+                float angle = i * Mathf.PI * 2f / steps;
+                GUI.DrawTexture(new Rect(
+                    cx + Mathf.Cos(angle) * radius - 0.5f,
+                    cy + Mathf.Sin(angle) * radius - 0.5f, 1f, 1f), Pixel);
+            }
+
+            // Ticks at the compass points, outside the ring.
+            GUI.DrawTexture(new Rect(cx - 0.5f, cy - radius - 6f, 1f, 4f), Pixel);
+            GUI.DrawTexture(new Rect(cx - 0.5f, cy + radius + 2f, 1f, 4f), Pixel);
+            GUI.DrawTexture(new Rect(cx - radius - 6f, cy - 0.5f, 4f, 1f), Pixel);
+            GUI.DrawTexture(new Rect(cx + radius + 2f, cy - 0.5f, 4f, 1f), Pixel);
+
+            GUI.color = previous;
         }
 
         private void DrawCrosshair()
