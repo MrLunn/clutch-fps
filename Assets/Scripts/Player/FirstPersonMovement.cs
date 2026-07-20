@@ -226,7 +226,19 @@ namespace ClutchFPS.Player
         {
             if (!IsOwner) return;
             if (_respawn == null) _respawn = GetComponent<PlayerRespawn>();
-            if (_respawn != null && _respawn.IsDead) return;
+
+            // Dead players still fall: skipping the whole update left anyone
+            // killed mid-air hanging there.
+            if (_respawn != null && _respawn.IsDead)
+            {
+                if (_controller.enabled)
+                {
+                    if (_controller.isGrounded && _verticalVelocity.y < 0f) _verticalVelocity.y = -2f;
+                    _verticalVelocity.y += gravity * Time.deltaTime;
+                    _controller.Move(Vector3.up * _verticalVelocity.y * Time.deltaTime);
+                }
+                return;
+            }
             if (PlayerHUD.LocalMenuOpen) return;
 
             Vector2 moveInput = Vector2.zero;

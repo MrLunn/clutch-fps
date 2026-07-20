@@ -24,6 +24,17 @@ namespace ClutchFPS.Environment
         [SerializeField] private float damage = 12f;
         [SerializeField] private float fireCooldown = 1.2f;
         [SerializeField] private float aimSpreadDegrees = 4f;
+
+        [Tooltip("Seconds between spotting a target and the first shot.")]
+        [SerializeField] private float reactionTime = 0.6f;
+        [Tooltip("Random aim error in metres at the target, independent of range — " +
+                 "angular spread alone makes close-range shots unmissable.")]
+        [SerializeField] private float aimErrorMetres = 0.55f;
+        [Tooltip("Fraction of shots deliberately thrown wide.")]
+        [Range(0f, 1f)][SerializeField] private float missChance = 0.25f;
+        [Tooltip("Shots per burst before a longer pause.")]
+        [SerializeField] private int burstSize = 3;
+        [SerializeField] private float burstPause = 1.8f;
         [SerializeField] private AudioClip fireSound;
         [SerializeField] private Material tracerMaterial;
 
@@ -39,6 +50,9 @@ namespace ClutchFPS.Environment
         private float _nextFireTime;
         private float _nextTargetScan;
         private PlayerRespawn _target;
+        private PlayerRespawn _previousTarget;
+        private float _targetAcquiredTime;
+        private int _shotsInBurst;
         private bool _dead;
 
         private void Awake()
@@ -74,6 +88,13 @@ namespace ClutchFPS.Environment
             {
                 _nextTargetScan = Time.time + 0.5f;
                 _target = FindNearestPlayer();
+                // Freshly spotted targets get a reaction delay before fire.
+                if (_target != null && _target != _previousTarget)
+                {
+                    _targetAcquiredTime = Time.time;
+                    _shotsInBurst = 0;
+                }
+                _previousTarget = _target;
             }
 
             if (_target == null)
@@ -90,9 +111,13 @@ namespace ClutchFPS.Environment
             {
                 _agent.SetDestination(transform.position);
                 FaceTarget(targetChest);
-                if (Time.time >= _nextFireTime)
+                bool reacted = Time.time >= _targetAcquiredTime + reactionTime;
+                if (reacted && Time.time >= _nextFireTime)
                 {
-                    _nextFireTime = Time.time + fireCooldown;
+                    _shotsInBurst++;
+                    bool endOfBurst = _shotsInBurst >= burstSize;
+                    _nextFireTime = Time.time + (endOfBurst ? burstPause : fireCooldown);
+                    if (endOfBurst) _shotsInBurst = 0;
                     FireAt(targetChest);
                 }
             }
@@ -146,7 +171,17 @@ namespace ClutchFPS.Environment
         private void FireAt(Vector3 targetPoint)
         {
             Vector3 eye = transform.position + Vector3.up * eyeHeight;
-            Vector3 direction = (targetPoint - eye).normalized;
+
+            // Aim error in metres at the target keeps close-range shots
+            // missable; angular spread alone shrinks to nothing up close.
+            float error = aimErrorMetres;
+            if (Random.value < missChance) error *= 3f;
+            Vector2 offset = Random.insideUnitCircle * error;
+            Vector3 aimPoint = targetPoint
+                + Vector3.right * offset.x
+                + Vector3.up * offset.y;
+
+            Vector3 direction = (aimPoint - eye).normalized;
             float yaw = Random.Range(-aimSpreadDegrees, aimSpreadDegrees);
             float pitch = Random.Range(-aimSpreadDegrees, aimSpreadDegrees);
             direction = Quaternion.Euler(pitch, yaw, 0f) * direction;
