@@ -13,10 +13,26 @@ namespace ClutchFPS.Networking
         private string _address = "127.0.0.1";
         private string _name;
 
+        private static readonly string[] MapNames = { "RANGE", "COMPLEX" };
+        private static readonly string[] MapScenes = { "ShootingRange", "Raid_Complex" };
+        private static int _mapIndex;
+        private static bool _pendingHost;
+
         private void Awake()
         {
             _name = Player.PlayerIdentity.LocalName;
             Player.DisplaySettings.ApplySavedIfAny();
+        }
+
+        private void Start()
+        {
+            // Resume hosting after a map change requested from the menu.
+            if (!_pendingHost) return;
+            _pendingHost = false;
+            var networkManager = NetworkManager.Singleton;
+            if (networkManager == null) return;
+            GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
+            networkManager.StartHost();
         }
 
         /// Wordmark, drawn procedurally so it needs no art: a heavy CLUTCH in
@@ -96,7 +112,7 @@ namespace ClutchFPS.Networking
             }
 
             const float width = 380f;
-            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.44f, width, 268f);
+            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.42f, width, 306f);
             UITheme.Panel3D(panel);
 
             float x = panel.x + 22f;
@@ -108,6 +124,11 @@ namespace ClutchFPS.Networking
             _name = DrawField(new Rect(x, y, w, 30f), _name, 20);
             y += 44f;
 
+            UITheme.Header(new Rect(x, y, w, 18f), "Location");
+            y += 24f;
+            _mapIndex = UITheme.Segmented(new Rect(x, y, w, 26f), MapNames, _mapIndex);
+            y += 34f;
+
             UITheme.Header(new Rect(x, y, w, 18f), "Deploy");
             y += 26f;
             if (UITheme.Button(new Rect(x, y, w, 40f), "Host Raid", primary: true))
@@ -115,7 +136,19 @@ namespace ClutchFPS.Networking
                 Player.PlayerIdentity.LocalName = _name;
                 // Listen on all interfaces so LAN/VPN clients can reach us.
                 GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
-                networkManager.StartHost();
+
+                // Load the chosen map before hosting; Netcode scene management
+                // then syncs it to anyone who joins.
+                string wanted = MapScenes[_mapIndex];
+                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != wanted)
+                {
+                    _pendingHost = true;
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(wanted);
+                }
+                else
+                {
+                    networkManager.StartHost();
+                }
             }
             y += 48f;
 
@@ -161,7 +194,7 @@ namespace ClutchFPS.Networking
 
         private void DrawSettingsPanel(Rect anchor)
         {
-            Rect panel = new(anchor.xMax + 14f, anchor.y, 300f, 268f);
+            Rect panel = new(anchor.xMax + 14f, anchor.y, 300f, 306f);
             UITheme.Panel3D(panel);
             UITheme.Header(new Rect(panel.x + 18f, panel.y + 16f, panel.width - 36f, 18f), "Display");
             GUILayout.BeginArea(new Rect(panel.x + 18f, panel.y + 44f, panel.width - 36f, panel.height - 60f));

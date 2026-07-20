@@ -7,7 +7,9 @@ namespace ClutchFPS.Environment
     /// the scene currently has — no editor baking step needed.
     public class NavRuntimeBaker : MonoBehaviour
     {
-        private void Awake()
+        // Start, not Awake: MapBuilder generates geometry in Awake, and the
+        // NavMesh must be built after that geometry exists.
+        private void Start()
         {
             var surface = gameObject.AddComponent<NavMeshSurface>();
             surface.collectObjects = CollectObjects.All;
