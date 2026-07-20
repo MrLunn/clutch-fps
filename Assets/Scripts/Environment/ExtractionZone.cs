@@ -13,8 +13,21 @@ namespace ClutchFPS.Environment
         [SerializeField] private float holdTime = 5f;
 
         // Progress for the local player, 0..1, mirrored so the HUD can draw it.
+        // Statics survive between sessions, so they must be cleared when a new
+        // raid starts or the old progress bar reappears on spawn.
         public static float LocalProgress;
         public static bool LocalInZone;
+
+        public static void ResetLocalState()
+        {
+            LocalProgress = 0f;
+            LocalInZone = false;
+        }
+
+        public override void OnNetworkSpawn()
+        {
+            ResetLocalState();
+        }
 
         private RaidController _occupant;
         private float _timer;

@@ -15,6 +15,9 @@ namespace ClutchFPS.Player
         private const float MaxAge = 6f;
         private static readonly List<Entry> Entries = new();
 
+        /// Statics persist across sessions; clear on raid start.
+        public static void Clear() => Entries.Clear();
+
         public static void Add(string attackerName, string victimName, bool suicide)
         {
             Entries.Add(new Entry

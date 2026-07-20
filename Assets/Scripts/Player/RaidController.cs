@@ -51,6 +51,11 @@ namespace ClutchFPS.Player
             _raidStartTime = Time.time;
             if (IsOwner)
             {
+                // Clear leftovers from any previous raid in this process.
+                Summary = default;
+                Environment.ExtractionZone.ResetLocalState();
+                KillFeed.Clear();
+
                 if (_respawn != null) _startingKills = _respawn.Kills.Value;
                 // Send the name explicitly rather than waiting on replication:
                 // guessing the timing meant stashes sometimes saved under the
