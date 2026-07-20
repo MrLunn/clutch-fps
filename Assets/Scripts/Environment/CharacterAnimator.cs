@@ -27,6 +27,14 @@ namespace ClutchFPS.Environment
         [SerializeField] private AnimationClip deathClip;
         [SerializeField] private float runSpeedThreshold = 3.5f;
 
+        [Header("Foot sync")]
+        [Tooltip("Ground speed (m/s) the walk clip was authored at.")]
+        [SerializeField] private float walkClipSpeed = 1.5f;
+        [Tooltip("Ground speed (m/s) the run clip was authored at.")]
+        [SerializeField] private float runClipSpeed = 4f;
+        [SerializeField] private float minPlaybackSpeed = 0.5f;
+        [SerializeField] private float maxPlaybackSpeed = 2.5f;
+
         /// Grabs the AnimationClip out of an imported FBX by asset path.
         /// Sub-asset fileIDs differ between Unity's ID-generation schemes, so
         /// resolving by path is the only reliable way to reference them.
@@ -78,6 +86,15 @@ namespace ClutchFPS.Environment
         private void Awake()
         {
             _animator = GetComponentInChildren<Animator>();
+            if (_animator != null)
+            {
+                // Mixamo clips carry root motion. The NavMeshAgent owns
+                // position here, so root motion must not also drive it or the
+                // character slides, moves at the wrong speed, and drifts out
+                // of its own hitboxes.
+                _animator.applyRootMotion = false;
+                _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            }
             if (visualRoot == null && _animator != null) visualRoot = _animator.transform;
             if (visualRoot != null) _visualBasePosition = visualRoot.localPosition;
             _lastPosition = transform.position;
@@ -89,6 +106,14 @@ namespace ClutchFPS.Environment
             if (deathClip == null) deathClip = LoadClip(deathClipPath);
 
             _hasClips = idleClip != null || walkClip != null || runClip != null;
+            if (_hasClips && visualRoot != null)
+            {
+                // Clips drive the pose now; make sure the procedural offsets
+                // aren't left applied, or the model sits away from its
+                // hitboxes and shots appear to miss.
+                visualRoot.localPosition = _visualBasePosition;
+                visualRoot.localRotation = Quaternion.identity;
+            }
             if (!_hasClips)
             {
                 Debug.LogWarning($"{name}: no humanoid clips resolved — " +
@@ -123,20 +148,41 @@ namespace ClutchFPS.Environment
         private void UpdateClips()
         {
             if (_animator == null) return;
-            AnimationClip wanted = _speed < 0.15f ? idleClip
-                : _speed >= runSpeedThreshold && runClip != null ? runClip
+            bool moving = _speed >= 0.15f;
+            bool running = _speed >= runSpeedThreshold && runClip != null;
+
+            AnimationClip wanted = !moving ? idleClip
+                : running ? runClip
                 : walkClip != null ? walkClip : idleClip;
-            if (wanted == null || wanted == _currentClip) return;
-            PlayClip(wanted);
+            if (wanted == null) return;
+
+            if (wanted != _currentClip) PlayClip(wanted);
+
+            // Match stride to actual ground speed so feet don't slide.
+            if (_playable.IsValid())
+            {
+                double rate = 1d;
+                if (moving)
+                {
+                    float authored = running ? runClipSpeed : walkClipSpeed;
+                    if (authored > 0.01f)
+                    {
+                        rate = Mathf.Clamp(_speed / authored, minPlaybackSpeed, maxPlaybackSpeed);
+                    }
+                }
+                _playable.SetSpeed(rate);
+            }
         }
+
+        private AnimationClipPlayable _playable;
 
         private void PlayClip(AnimationClip clip)
         {
             if (_graph.IsValid()) _graph.Destroy();
             _graph = PlayableGraph.Create($"{name}-Locomotion");
             var output = AnimationPlayableOutput.Create(_graph, "Locomotion", _animator);
-            var playable = AnimationClipPlayable.Create(_graph, clip);
-            output.SetSourcePlayable(playable);
+            _playable = AnimationClipPlayable.Create(_graph, clip);
+            output.SetSourcePlayable(_playable);
             _graph.Play();
             _currentClip = clip;
         }

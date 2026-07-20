@@ -293,7 +293,11 @@ MonoBehaviour:
   walkClip: {fileID: 0}
   runClip: {fileID: 0}
   deathClip: {fileID: 0}
-  runSpeedThreshold: 3.5
+  runSpeedThreshold: 2.6
+  walkClipSpeed: 1.5
+  runClipSpeed: 4
+  minPlaybackSpeed: 0.5
+  maxPlaybackSpeed: 2.5
   visualRoot: {fileID: 2000002}
   bobHeight: 0.06
   bobFrequency: 8
