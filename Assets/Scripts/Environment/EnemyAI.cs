@@ -113,6 +113,8 @@ namespace ClutchFPS.Environment
             foreach (var player in FindObjectsByType<PlayerRespawn>(FindObjectsSortMode.None))
             {
                 if (player.IsDead) continue;
+                // Extracted players have left the raid.
+                if (player.TryGetComponent<RaidController>(out var raid) && raid.HasExtracted) continue;
                 float distance = Vector3.Distance(transform.position, player.transform.position);
                 if (distance < best)
                 {

@@ -104,6 +104,17 @@ namespace ClutchFPS.Player
             }
             // Netcode can't serialize string[]; send one joined string.
             SummaryClientRpc(string.Join("|", lines));
+            LeaveWorldClientRpc();
+        }
+
+        /// Extracted players are out of the raid: stop simulating them so they
+        /// can't drift, be shot, or be chased while the summary is up.
+        [ClientRpc]
+        private void LeaveWorldClientRpc()
+        {
+            if (TryGetComponent<CharacterController>(out var controller)) controller.enabled = false;
+            foreach (var collider in GetComponentsInChildren<Collider>(true)) collider.enabled = false;
+            foreach (var renderer in GetComponentsInChildren<Renderer>(true)) renderer.enabled = false;
         }
 
         [ClientRpc]
