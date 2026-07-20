@@ -16,6 +16,7 @@ namespace ClutchFPS.Player
         [SerializeField] private PlayerRespawn respawn;
         [SerializeField] private PracticeMode practice;
         [SerializeField] private PlayerInventory inventory;
+        [SerializeField] private RaidController raid;
 
         private bool _settingsOpen;
         private bool _tuningOpen;
@@ -83,6 +84,7 @@ namespace ClutchFPS.Player
             DrawStatus();
             DrawKillFeed();
             DrawPractice();
+            DrawExtraction();
             if (Keyboard.current != null && Keyboard.current.vKey.isPressed) DrawScoreboard();
             if (_settingsOpen) DrawSettings();
             if (_tuningOpen) DrawWeaponTuning();
@@ -272,6 +274,42 @@ namespace ClutchFPS.Player
                     $"[P] Practice run   Best: {practice.BestScore}", _smallStyle);
                 _smallStyle.alignment = TextAnchor.MiddleRight;
             }
+        }
+
+        private void DrawExtraction()
+        {
+            EnsureStyles();
+
+            if (raid != null && raid.HasExtracted)
+            {
+                var previous = GUI.color;
+                GUI.color = new Color(0f, 0.1f, 0f, 0.6f);
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Pixel);
+                GUI.color = previous;
+                _promptStyle.fontSize = 40;
+                _promptStyle.normal.textColor = new Color(0.4f, 1f, 0.5f);
+                GUI.Label(new Rect(0, Screen.height / 2f - 50, Screen.width, 50), "EXTRACTED", _promptStyle);
+                _promptStyle.fontSize = 18;
+                _promptStyle.normal.textColor = Color.white;
+                GUI.Label(new Rect(0, Screen.height / 2f + 6, Screen.width, 30),
+                    "Your gear is safe in your stash.", _promptStyle);
+                return;
+            }
+
+            if (!Environment.ExtractionZone.LocalInZone) return;
+            float progress = Environment.ExtractionZone.LocalProgress;
+            float w = 320, h = 26;
+            float x = Screen.width / 2f - w / 2f, y = Screen.height * 0.66f;
+            var prev = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.6f);
+            GUI.DrawTexture(new Rect(x, y, w, h), Pixel);
+            GUI.color = new Color(0.35f, 0.85f, 0.4f);
+            GUI.DrawTexture(new Rect(x, y, w * progress, h), Pixel);
+            GUI.color = prev;
+            _promptStyle.fontSize = 16;
+            _promptStyle.normal.textColor = Color.white;
+            GUI.Label(new Rect(x, y, w, h), "EXTRACTING...", _promptStyle);
+            _promptStyle.fontSize = 18;
         }
 
         private void DrawKillFeed()

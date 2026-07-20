@@ -36,6 +36,29 @@ namespace ClutchFPS.Player
         public int SlotCount => _slots.Count;
         public Slot GetSlot(int index) => _slots[index];
 
+        /// Server-side snapshot/restore for the persistent stash.
+        public void ServerExport(out int[] ids, out int[] counts)
+        {
+            ids = new int[_slots.Count];
+            counts = new int[_slots.Count];
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                ids[i] = _slots[i].ItemId;
+                counts[i] = _slots[i].Count;
+            }
+        }
+
+        public void ServerImport(int[] ids, int[] counts)
+        {
+            if (!IsServer) return;
+            _slots.Clear();
+            if (ids == null) return;
+            for (int i = 0; i < ids.Length && i < counts.Length; i++)
+            {
+                _slots.Add(new Slot { ItemId = ids[i], Count = counts[i] });
+            }
+        }
+
         /// Total amount of one item across all slots (e.g. reserve ammo).
         public int CountOf(int itemId)
         {
@@ -66,15 +89,8 @@ namespace ClutchFPS.Player
             return taken;
         }
 
-        public override void OnNetworkSpawn()
-        {
-            // Starting reserve: enough to fight, scarce enough that looting matters.
-            if (IsServer)
-            {
-                ServerAddItem((int)ItemType.Ammo556, 60);
-                ServerAddItem((int)ItemType.Ammo9mm, 30);
-            }
-        }
+        // Inventory contents come from the persistent stash (RaidController),
+        // not a hardcoded spawn grant.
 
         /// Server-side. Returns false if nothing could be added (inventory full).
         public bool ServerAddItem(int itemId, int amount)

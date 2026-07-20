@@ -46,6 +46,27 @@ namespace ClutchFPS.Weapons
             return true;
         }
 
+        /// Server-side loadout snapshot for the persistent stash.
+        public int OwnedSlotsMask => _ownedSlots.Value;
+
+        public void ServerApplyLoadout(int ownedMask, int[] variants)
+        {
+            if (!IsServer) return;
+            _ownedSlots.Value = ownedMask | 1; // always keep slot 0
+            if (variants == null) return;
+            for (int i = 0; i < weapons.Length && i < variants.Length; i++)
+            {
+                if (variants[i] >= 0) weapons[i].ServerSetWeaponData(variants[i]);
+            }
+        }
+
+        public int[] ServerGetVariants()
+        {
+            var result = new int[weapons.Length];
+            for (int i = 0; i < weapons.Length; i++) result[i] = weapons[i].VariantIndex;
+            return result;
+        }
+
         /// Owner-side only: which weapon the local player currently has out.
         public Weapon ActiveWeapon =>
             weapons != null && weapons.Length > 0 ? weapons[_activeIndex] : null;

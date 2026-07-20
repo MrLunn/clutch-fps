@@ -34,6 +34,8 @@ namespace ClutchFPS.Weapons
             }
         }
 
+        public int VariantIndex => _dataIndex.Value;
+
         /// Server-side: swap this slot to a database variant, fresh mag.
         public void ServerSetWeaponData(int index)
         {
