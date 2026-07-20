@@ -49,28 +49,40 @@ namespace ClutchFPS.Player
         public override void OnNetworkSpawn()
         {
             _raidStartTime = Time.time;
-            if (IsOwner && _respawn != null) _startingKills = _respawn.Kills.Value;
-            if (!IsServer) return;
-            // The name variable may not be replicated yet; poll briefly.
-            Invoke(nameof(LoadStashServer), 0.5f);
+            if (IsOwner)
+            {
+                if (_respawn != null) _startingKills = _respawn.Kills.Value;
+                // Send the name explicitly rather than waiting on replication:
+                // guessing the timing meant stashes sometimes saved under the
+                // fallback "Player N" key and appeared to vanish.
+                RegisterNameServerRpc(PlayerIdentity.LocalName);
+            }
+        }
+
+        [ServerRpc]
+        private void RegisterNameServerRpc(string playerName)
+        {
+            _playerName = string.IsNullOrWhiteSpace(playerName)
+                ? $"Player {OwnerClientId}" : playerName.Trim();
+            LoadStashServer();
         }
 
         private void LoadStashServer()
         {
-            _playerName = _respawn != null ? _respawn.ResolvedName : $"Player {OwnerClientId}";
             var stash = StashService.Get(_playerName);
 
-            if (stash == null)
+            // Weapons you've banked come with you into the raid...
+            if (stash != null)
             {
-                // Starter kit for a brand-new player.
-                _inventory.ServerImport(
-                    new[] { (int)ItemType.Ammo556, (int)ItemType.Ammo9mm },
-                    new[] { 60, 30 });
-                return;
+                _weapons.ServerApplyLoadout(stash.ownedSlots, stash.weaponVariants);
             }
 
-            _weapons.ServerApplyLoadout(stash.ownedSlots, stash.weaponVariants);
-            _inventory.ServerImport(stash.itemIds, stash.itemCounts);
+            // ...but the stash itself stays safe at base. Each raid starts on a
+            // standard ammo kit, so dying costs you the raid's loot, not
+            // everything you've ever banked.
+            _inventory.ServerImport(
+                new[] { (int)ItemType.Ammo556, (int)ItemType.Ammo9mm },
+                new[] { 60, 30 });
         }
 
         /// Called by the extraction zone on the server.
@@ -80,14 +92,10 @@ namespace ClutchFPS.Player
             if (_respawn != null && _respawn.IsDead) return;
 
             _inventory.ServerExport(out int[] ids, out int[] counts);
-            StashService.Save(new StashService.StashEntry
-            {
-                playerName = _playerName,
-                ownedSlots = _weapons.OwnedSlotsMask,
-                weaponVariants = _weapons.ServerGetVariants(),
-                itemIds = ids,
-                itemCounts = counts
-            });
+            // Deposit merges into the existing stash so hauls accumulate
+            // across raids instead of overwriting each other.
+            StashService.Deposit(_playerName, _weapons.OwnedSlotsMask,
+                _weapons.ServerGetVariants(), ids, counts);
             _extracted.Value = true;
 
             // Build the human-readable haul for the summary screen.
