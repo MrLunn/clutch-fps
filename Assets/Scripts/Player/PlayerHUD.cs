@@ -312,79 +312,103 @@ namespace ClutchFPS.Player
 
             if (!Environment.ExtractionZone.LocalInZone) return;
             float progress = Environment.ExtractionZone.LocalProgress;
-            float w = 320, h = 26;
-            float x = Screen.width / 2f - w / 2f, y = Screen.height * 0.66f;
-            var prev = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
-            GUI.DrawTexture(new Rect(x, y, w, h), Pixel);
-            GUI.color = new Color(0.35f, 0.85f, 0.4f);
-            GUI.DrawTexture(new Rect(x, y, w * progress, h), Pixel);
-            GUI.color = prev;
-            _promptStyle.fontSize = 16;
-            _promptStyle.normal.textColor = Color.white;
-            GUI.Label(new Rect(x, y, w, h), "EXTRACTING...", _promptStyle);
-            _promptStyle.fontSize = 18;
+
+            const float w = 360f, h = 8f;
+            float x = Screen.width / 2f - w / 2f;
+            float y = Screen.height * 0.64f;
+
+            GUI.Label(new Rect(x, y - 26f, w, 20f), "EXTRACTING",
+                Core.UITheme.Style(15, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.Success));
+            GUI.Label(new Rect(x, y - 26f, w, 20f), $"{Mathf.RoundToInt(progress * 100f)}%",
+                Core.UITheme.Style(13, FontStyle.Bold, TextAnchor.MiddleRight, Core.UITheme.TextDim));
+            Core.UITheme.Bar(new Rect(x, y, w, h), progress, Core.UITheme.Success);
+            GUI.Label(new Rect(x, y + 12f, w, 18f), "HOLD POSITION",
+                Core.UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
         }
 
         /// Post-raid results screen: the haul, the stats, and the way out.
         private void DrawRaidSummary()
         {
-            EnsureStyles();
             var summary = raid.Summary;
+            var green = Core.UITheme.Success;
 
-            var previous = GUI.color;
-            GUI.color = new Color(0.02f, 0.06f, 0.03f, 0.88f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Pixel);
-            GUI.color = previous;
+            // Dim the world and frame the screen in green.
+            Core.UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.02f, 0.05f, 0.03f, 0.9f));
+            Core.UITheme.Fill(new Rect(0, 0, Screen.width, 3f), green);
+            Core.UITheme.Fill(new Rect(0, Screen.height - 3f, Screen.width, 3f), Core.UITheme.AccentDim);
 
-            _promptStyle.fontSize = 44;
-            _promptStyle.normal.textColor = new Color(0.45f, 1f, 0.55f);
-            GUI.Label(new Rect(0, Screen.height * 0.12f, Screen.width, 56), "EXTRACTION SUCCESSFUL", _promptStyle);
-            _promptStyle.fontSize = 18;
+            float headerY = Screen.height * 0.11f;
+            GUI.Label(new Rect(0, headerY, Screen.width, 56f), "EXTRACTION SUCCESSFUL",
+                Core.UITheme.Style(46, FontStyle.Bold, TextAnchor.MiddleCenter, green));
+            GUI.Label(new Rect(0, headerY + 52f, Screen.width, 20f),
+                "G E A R   S E C U R E D",
+                Core.UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
 
-            Rect panel = new(Screen.width / 2f - 260, Screen.height * 0.24f, 520, Screen.height * 0.5f);
-            GUI.Box(panel, "RAID REPORT");
-            GUILayout.BeginArea(new Rect(panel.x + 24, panel.y + 36, panel.width - 48, panel.height - 56));
+            const float panelW = 560f;
+            Rect panel = new(Screen.width / 2f - panelW / 2f, Screen.height * 0.24f, panelW, Screen.height * 0.48f);
+            Core.UITheme.Panel3D(panel, accentEdge: false);
+            Core.UITheme.Fill(new Rect(panel.x, panel.y, panel.width, 3f), green);
 
-            _smallStyle.alignment = TextAnchor.MiddleLeft;
-            _smallStyle.normal.textColor = new Color(0.85f, 0.85f, 0.85f);
+            float x = panel.x + 28f;
+            float w = panel.width - 56f;
+            float y = panel.y + 24f;
 
+            // Stat row: three tiles across the top.
             int minutes = Mathf.FloorToInt(summary.Duration / 60f);
             int seconds = Mathf.FloorToInt(summary.Duration % 60f);
-            GUILayout.Label($"Survived:   {minutes}:{seconds:00}", _smallStyle);
-            GUILayout.Label($"Kills this raid:   {summary.Kills}", _smallStyle);
-            if (practice != null && practice.BestScore > 0)
-            {
-                GUILayout.Label($"Best practice run:   {practice.BestScore}", _smallStyle);
-            }
+            float tileW = (w - 16f) / 3f;
+            DrawStatTile(new Rect(x, y, tileW, 58f), "SURVIVED", $"{minutes}:{seconds:00}", Core.UITheme.TextBright);
+            DrawStatTile(new Rect(x + tileW + 8f, y, tileW, 58f), "KILLS", summary.Kills.ToString(), Core.UITheme.Accent);
+            DrawStatTile(new Rect(x + (tileW + 8f) * 2f, y, tileW, 58f), "ITEMS OUT",
+                (summary.Lines?.Length ?? 0).ToString(), green);
+            y += 76f;
 
-            GUILayout.Space(14);
-            _smallStyle.normal.textColor = new Color(0.45f, 1f, 0.55f);
-            GUILayout.Label("SECURED IN STASH", _smallStyle);
-            _smallStyle.normal.textColor = Color.white;
+            Core.UITheme.Header(new Rect(x, y, w, 18f), "Secured in stash");
+            y += 26f;
 
-            if (summary.Lines != null)
+            // Haul list, two columns.
+            if (summary.Lines != null && summary.Lines.Length > 0)
             {
-                foreach (var line in summary.Lines)
+                float colW = w / 2f;
+                float rowH = 22f;
+                float listBottom = panel.yMax - 52f;
+                int perColumn = Mathf.Max(1, Mathf.FloorToInt((listBottom - y) / rowH));
+                for (int i = 0; i < summary.Lines.Length && i < perColumn * 2; i++)
                 {
-                    GUILayout.Label($"   • {line}", _smallStyle);
+                    float cx = x + (i / perColumn) * colW;
+                    float cy = y + (i % perColumn) * rowH;
+                    Core.UITheme.Fill(new Rect(cx, cy + rowH / 2f - 2f, 4f, 4f), green);
+                    GUI.Label(new Rect(cx + 14f, cy, colW - 20f, rowH), summary.Lines[i],
+                        Core.UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextBright));
                 }
             }
+            else
+            {
+                GUI.Label(new Rect(x, y, w, 22f), "Nothing recovered.",
+                    Core.UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+            }
 
-            GUILayout.FlexibleSpace();
-            _smallStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
-            GUILayout.Label("This gear is kept for your next raid.", _smallStyle);
-            GUILayout.EndArea();
-            _smallStyle.alignment = TextAnchor.MiddleRight;
+            GUI.Label(new Rect(x, panel.yMax - 34f, w, 20f),
+                "This gear carries into your next raid.",
+                Core.UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
 
-            // Exit back to the connect menu.
-            Rect button = new(Screen.width / 2f - 110, panel.yMax + 24, 220, 44);
-            if (GUI.Button(button, "LEAVE RAID"))
+            if (Core.UITheme.Button(new Rect(Screen.width / 2f - 120f, panel.yMax + 26f, 240f, 46f),
+                "Leave Raid", primary: true))
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
                 if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
             }
+        }
+
+        private static void DrawStatTile(Rect rect, string label, string value, Color valueColor)
+        {
+            Core.UITheme.Fill(rect, new Color(0.10f, 0.11f, 0.12f, 0.95f));
+            Core.UITheme.Fill(new Rect(rect.x, rect.y, rect.width, 1f), Core.UITheme.Line);
+            GUI.Label(new Rect(rect.x, rect.y + 8f, rect.width, 28f), value,
+                Core.UITheme.Style(26, FontStyle.Bold, TextAnchor.MiddleCenter, valueColor));
+            GUI.Label(new Rect(rect.x, rect.y + 36f, rect.width, 16f), label,
+                Core.UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
         }
 
         private void DrawKillFeed()
@@ -542,18 +566,17 @@ namespace ClutchFPS.Player
 
         private void DrawDeathScreen()
         {
-            EnsureStyles();
-            var previous = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.55f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Pixel);
-            GUI.color = previous;
+            Core.UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.08f, 0.01f, 0.01f, 0.72f));
+            Core.UITheme.Fill(new Rect(0, 0, Screen.width, 3f), Core.UITheme.Danger);
+            Core.UITheme.Fill(new Rect(0, Screen.height - 3f, Screen.width, 3f), Core.UITheme.Danger);
 
-            _promptStyle.fontSize = 42;
-            _promptStyle.normal.textColor = new Color(0.95f, 0.25f, 0.2f);
-            GUI.Label(new Rect(0, Screen.height / 2f - 60, Screen.width, 50), "YOU DIED", _promptStyle);
-            _promptStyle.fontSize = 18;
-            _promptStyle.normal.textColor = Color.white;
-            GUI.Label(new Rect(0, Screen.height / 2f, Screen.width, 30), "Respawning...", _promptStyle);
+            GUI.Label(new Rect(0, Screen.height / 2f - 66f, Screen.width, 54f), "YOU DIED",
+                Core.UITheme.Style(46, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.Danger));
+            GUI.Label(new Rect(0, Screen.height / 2f - 12f, Screen.width, 20f),
+                "L O O T   L O S T",
+                Core.UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
+            GUI.Label(new Rect(0, Screen.height / 2f + 18f, Screen.width, 24f), "Respawning...",
+                Core.UITheme.Style(15, FontStyle.Normal, TextAnchor.MiddleCenter, Core.UITheme.TextBright));
         }
 
         private void DrawHitmarker()
