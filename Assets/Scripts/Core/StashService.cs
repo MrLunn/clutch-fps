@@ -65,13 +65,85 @@ namespace ClutchFPS.Core
             return _cache;
         }
 
+        // ---------- cloud routing (Stage 2) ----------
+        // When a player signs in, their account's entry is held in memory here
+        // and persisted to Cloud Save by CloudStashBridge instead of the local
+        // file. Everything keyed to CloudAccountName routes to _cloudEntry; any
+        // other name (e.g. a remote client on a host) still uses the local file.
+
+        private static StashEntry _cloudEntry;
+        private static bool _cloudActive;
+        public static string CloudAccountName { get; private set; }
+        public static bool CloudDirty { get; private set; }
+
+        private static bool IsCloud(string name) => _cloudActive && name == CloudAccountName;
+
+        /// Called by the cloud bridge after loading the account's blob. A null
+        /// blob means no cloud data yet — migrate a local stash if we can find
+        /// one (exact name match, or the only local entry) so nothing is lost.
+        public static void ActivateCloud(string accountName, string loadedJson)
+        {
+            CloudAccountName = accountName;
+            if (!string.IsNullOrEmpty(loadedJson))
+            {
+                _cloudEntry = JsonUtility.FromJson<StashEntry>(loadedJson);
+                if (_cloudEntry != null) _cloudEntry.playerName = accountName;
+                _cloudActive = true;
+                CloudDirty = false;
+                return;
+            }
+
+            var local = MigrationSource(accountName);
+            _cloudEntry = local != null ? CloneEntry(local, accountName) : null;
+            _cloudActive = true;
+            CloudDirty = _cloudEntry != null; // push migrated data up on first flush
+        }
+
+        public static void DeactivateCloud()
+        {
+            _cloudActive = false;
+            _cloudEntry = null;
+            CloudAccountName = null;
+            CloudDirty = false;
+        }
+
+        /// Serialize the cloud entry for saving; clears the dirty flag.
+        public static string SnapshotCloudJson()
+        {
+            CloudDirty = false;
+            return _cloudEntry != null ? JsonUtility.ToJson(_cloudEntry) : null;
+        }
+
+        /// Re-flag as dirty (e.g. a save failed and should be retried).
+        public static void MarkCloudDirty()
+        {
+            if (_cloudActive) CloudDirty = true;
+        }
+
+        private static StashEntry MigrationSource(string accountName)
+        {
+            var file = Load();
+            var exact = file.entries.Find(e => e.playerName == accountName);
+            if (exact != null) return exact;
+            return file.entries.Count == 1 ? file.entries[0] : null;
+        }
+
+        private static StashEntry CloneEntry(StashEntry src, string name)
+        {
+            var clone = JsonUtility.FromJson<StashEntry>(JsonUtility.ToJson(src));
+            clone.playerName = name;
+            return clone;
+        }
+
         public static StashEntry Get(string playerName)
         {
+            if (IsCloud(playerName)) return _cloudEntry;
             return Load().entries.Find(entry => entry.playerName == playerName);
         }
 
         public static StashEntry GetOrCreate(string playerName)
         {
+            if (IsCloud(playerName)) return _cloudEntry ??= new StashEntry { playerName = playerName };
             return Get(playerName) ?? new StashEntry { playerName = playerName };
         }
 
@@ -351,6 +423,14 @@ namespace ClutchFPS.Core
 
         public static void Save(StashEntry entry)
         {
+            // The signed-in account's entry lives in the cloud, not the file.
+            if (IsCloud(entry.playerName))
+            {
+                _cloudEntry = entry;
+                CloudDirty = true;
+                return;
+            }
+
             var file = Load();
             file.entries.RemoveAll(existing => existing.playerName == entry.playerName);
             file.entries.Add(entry);
