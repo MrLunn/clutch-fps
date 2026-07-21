@@ -122,6 +122,7 @@ namespace ClutchFPS.Player
         {
             // First-timers get a starter kit so the stash is never empty.
             StashService.EnsureStarter(_playerName);
+            if (RaidActive) StashService.RecordRaidStart(_playerName);
             var stash = StashService.Get(_playerName);
 
             // Check out the equipped loadout: which weapon slots to bring and
@@ -158,6 +159,14 @@ namespace ClutchFPS.Player
             int amount = victimWasPlayer ? CreditsPerPlayerKill : CreditsPerAiKill;
             _killCreditsEarned += amount;
             StashService.AddCredits(_playerName, amount);
+            StashService.RecordKill(_playerName);
+        }
+
+        /// Server-side: log a death against this player's lifetime stats.
+        public void ServerRecordDeath()
+        {
+            if (!IsServer || !RaidActive || string.IsNullOrEmpty(_playerName)) return;
+            StashService.RecordDeath(_playerName);
         }
 
         /// Called by the extraction zone on the server.
@@ -184,6 +193,7 @@ namespace ClutchFPS.Player
             }
             int extractCredits = surviveCredits + timeCredits;
             if (extractCredits > 0) StashService.AddCredits(_playerName, extractCredits);
+            if (RaidActive) StashService.RecordExtract(_playerName);
 
             // Build the human-readable haul for the summary screen.
             var lines = new System.Collections.Generic.List<string>();

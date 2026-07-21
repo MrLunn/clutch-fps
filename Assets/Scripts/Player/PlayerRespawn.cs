@@ -101,6 +101,7 @@ namespace ClutchFPS.Player
             if (!IsServer) return;
             _isDead.Value = true;
             Deaths.Value++;
+            if (TryGetComponent<RaidController>(out var raid)) raid.ServerRecordDeath();
             // AI kills show as "Enemy"; unknown attackers fall back to the victim.
             string attackerName = attackerClientId == Environment.EnemyAI.AiClientId
                 ? "Enemy" : ResolvedName;

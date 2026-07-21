@@ -25,6 +25,14 @@ namespace ClutchFPS.Core
             public int loadoutSlots = 1;
             public int[] loadoutItemIds = new int[0];
             public int[] loadoutItemCounts = new int[0];
+
+            // Lifetime stats. Backend-agnostic: these ride along into cloud
+            // storage unchanged once accounts land.
+            public int totalKills;
+            public int totalDeaths;
+            public int raidsRun;
+            public int raidsSurvived;
+            public int lifetimeCredits;
         }
 
         // What a brand-new operator (or a fresh start) walks away with.
@@ -106,6 +114,37 @@ namespace ClutchFPS.Core
         {
             var stash = GetOrCreate(playerName);
             stash.credits = Mathf.Max(0, stash.credits + amount);
+            if (amount > 0) stash.lifetimeCredits += amount;
+            Save(stash);
+        }
+
+        // ---------- lifetime stats ----------
+
+        public static void RecordKill(string playerName)
+        {
+            var stash = GetOrCreate(playerName);
+            stash.totalKills++;
+            Save(stash);
+        }
+
+        public static void RecordDeath(string playerName)
+        {
+            var stash = GetOrCreate(playerName);
+            stash.totalDeaths++;
+            Save(stash);
+        }
+
+        public static void RecordRaidStart(string playerName)
+        {
+            var stash = GetOrCreate(playerName);
+            stash.raidsRun++;
+            Save(stash);
+        }
+
+        public static void RecordExtract(string playerName)
+        {
+            var stash = GetOrCreate(playerName);
+            stash.raidsSurvived++;
             Save(stash);
         }
 

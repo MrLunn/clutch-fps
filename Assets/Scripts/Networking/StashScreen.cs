@@ -76,6 +76,16 @@ namespace ClutchFPS.Networking
         private static void DrawStashTab(Rect panel, string playerName, StashService.StashEntry stash,
             float x, float w, float y)
         {
+            // Lifetime stats strip across the top.
+            float kd = stash.totalDeaths > 0 ? (float)stash.totalKills / stash.totalDeaths : stash.totalKills;
+            Rect statBar = new(x, y, w, 24f);
+            UITheme.Fill(statBar, new Color(0.08f, 0.09f, 0.10f, 0.9f));
+            GUI.Label(statBar,
+                $"RAIDS {stash.raidsRun}   ·   SURVIVED {stash.raidsSurvived}   ·   " +
+                $"KILLS {stash.totalKills}   ·   DEATHS {stash.totalDeaths}   ·   K/D {kd:0.0}",
+                UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
+            y += 32f;
+
             float colW = (w - 20f) / 2f;
             float lx = x, rx = x + colW + 20f;
             float bottom = panel.yMax - 66f;
