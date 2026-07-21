@@ -140,7 +140,7 @@ namespace ClutchFPS.Networking
             }
 
             const float width = 380f;
-            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.42f, width, 332f);
+            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.40f, width, 378f);
             UITheme.Panel3D(panel);
 
             float x = panel.x + 22f;
@@ -180,10 +180,19 @@ namespace ClutchFPS.Networking
             }
             y += 48f;
 
-            // Join by code — Relay resolves it, no IP or port-forwarding needed.
+            // Quick Join — auto-finds any open game, no code needed.
+            if (UITheme.Button(new Rect(x, y, w, 34f), "Quick Join") && !busy)
+            {
+                Player.PlayerIdentity.LocalName = _name;
+                EnsureRuntimePrefabs(networkManager);
+                ConnectionService.QuickJoin();
+            }
+            y += 40f;
+
+            // Or join a specific friend by their code — Relay resolves it.
             float codeWidth = w * 0.54f;
             _joinCode = DrawField(new Rect(x, y, codeWidth, 32f), _joinCode, 8).ToUpperInvariant();
-            if (UITheme.Button(new Rect(x + codeWidth + 8f, y, w - codeWidth - 8f, 32f), "Join") && !busy)
+            if (UITheme.Button(new Rect(x + codeWidth + 8f, y, w - codeWidth - 8f, 32f), "Join Code") && !busy)
             {
                 Player.PlayerIdentity.LocalName = _name;
                 EnsureRuntimePrefabs(networkManager);
@@ -199,7 +208,7 @@ namespace ClutchFPS.Networking
             }
             else
             {
-                GUI.Label(new Rect(x, y, w, 16f), "Host to get a code · enter a friend's code to join",
+                GUI.Label(new Rect(x, y, w, 16f), "Quick Join drops you into any open game · a host must be live",
                     UITheme.Style(10, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
             }
             y += 22f;

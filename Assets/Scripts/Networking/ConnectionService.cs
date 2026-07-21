@@ -50,6 +50,29 @@ namespace ClutchFPS.Networking
             catch (System.Exception e) { Fail(e); }
         }
 
+        /// Find any open public session and drop into it — no code needed. The
+        /// host must be live; if nothing is open, that's the error shown.
+        public static async void QuickJoin()
+        {
+            if (Busy) return;
+            Status = State.Connecting;
+            LastError = "";
+            try
+            {
+                var results = await MultiplayerService.Instance.QuerySessionsAsync(new QuerySessionsOptions());
+                if (results.Sessions == null || results.Sessions.Count == 0)
+                {
+                    LastError = "No open games — ask a friend to Host first.";
+                    Status = State.Error;
+                    return;
+                }
+                _session = await MultiplayerService.Instance.JoinSessionByIdAsync(results.Sessions[0].Id);
+                JoinCode = _session.Code;
+                Status = State.Connected;
+            }
+            catch (System.Exception e) { Fail(e); }
+        }
+
         public static async void Leave()
         {
             try { if (_session != null) await _session.LeaveAsync(); }
