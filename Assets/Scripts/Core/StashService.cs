@@ -15,8 +15,16 @@ namespace ClutchFPS.Core
             public int credits = 0;
             public int ownedSlots = 1;
             public int[] weaponVariants = new int[0];
+
+            // Safe stash: stays at base, never at risk.
             public int[] itemIds = new int[0];
             public int[] itemCounts = new int[0];
+
+            // Loadout: the kit you've equipped to take into the next raid.
+            // Weapons here are a subset of ownedSlots (bit 0 always in).
+            public int loadoutSlots = 1;
+            public int[] loadoutItemIds = new int[0];
+            public int[] loadoutItemCounts = new int[0];
         }
 
         // What a brand-new operator (or a fresh start) walks away with.
@@ -67,8 +75,13 @@ namespace ClutchFPS.Core
             credits = StarterCredits,
             ownedSlots = 1, // the free starter rifle
             weaponVariants = new[] { -1 },
-            itemIds = new[] { (int)ItemType.Ammo556, (int)ItemType.Ammo9mm, (int)ItemType.Medkit },
-            itemCounts = new[] { 60, 30, 1 }
+            // Safe stash starts with spare ammo; the medkit is pre-equipped so a
+            // first raid is kitted, and the rifle is equipped by default.
+            itemIds = new[] { (int)ItemType.Ammo556, (int)ItemType.Ammo9mm },
+            itemCounts = new[] { 60, 30 },
+            loadoutSlots = 1,
+            loadoutItemIds = new[] { (int)ItemType.Medkit },
+            loadoutItemCounts = new[] { 1 }
         };
 
         /// First-time operators (no stash on record) get a starter kit so they
@@ -159,24 +172,101 @@ namespace ClutchFPS.Core
             Save(stash);
         }
 
-        /// Pull every consumable out of the stash for a raid loadout, emptying
-        /// the stash of them. They ride into the raid; extracting deposits them
-        /// (and any loot) back, dying loses them. Weapons are not checked out —
-        /// owned slots persist across raids.
-        public static void CheckoutItems(string playerName, out int[] ids, out int[] counts)
+        // ---------- loadout (equip / unequip) ----------
+
+        /// True when a weapon slot is marked to take into the raid.
+        public static bool IsSlotEquipped(string playerName, int slot)
         {
             var stash = Get(playerName);
-            if (stash?.itemIds == null || stash.itemIds.Length == 0)
+            return stash != null && ((stash.loadoutSlots >> slot) & 1) == 1;
+        }
+
+        public static void EquipWeapon(string playerName, int slot)
+        {
+            var stash = Get(playerName);
+            if (stash == null || ((stash.ownedSlots >> slot) & 1) != 1) return;
+            stash.loadoutSlots |= 1 << slot;
+            Save(stash);
+        }
+
+        public static void UnequipWeapon(string playerName, int slot)
+        {
+            // Slot 0 (the starter rifle) is always taken — never go in unarmed.
+            if (slot == 0) return;
+            var stash = Get(playerName);
+            if (stash == null) return;
+            stash.loadoutSlots &= ~(1 << slot);
+            Save(stash);
+        }
+
+        /// Move a whole item stack from the safe stash into the loadout.
+        public static void EquipItem(string playerName, int itemId)
+        {
+            var stash = Get(playerName);
+            if (stash == null) return;
+            int count = TakeAll(ref stash.itemIds, ref stash.itemCounts, itemId);
+            if (count <= 0) return;
+            AddTo(ref stash.loadoutItemIds, ref stash.loadoutItemCounts, itemId, count);
+            Save(stash);
+        }
+
+        /// Move a whole item stack from the loadout back into the safe stash.
+        public static void UnequipItem(string playerName, int itemId)
+        {
+            var stash = Get(playerName);
+            if (stash == null) return;
+            int count = TakeAll(ref stash.loadoutItemIds, ref stash.loadoutItemCounts, itemId);
+            if (count <= 0) return;
+            AddTo(ref stash.itemIds, ref stash.itemCounts, itemId, count);
+            Save(stash);
+        }
+
+        /// Check the equipped loadout out for a raid: returns the equipped weapon
+        /// mask (always incl. slot 0) and the equipped items, removing the items
+        /// from the loadout so they're at risk. Extract deposits them back to the
+        /// safe stash; dying loses them. Owned weapon slots are untouched.
+        public static void CheckoutLoadout(string playerName, out int[] ids, out int[] counts, out int slots)
+        {
+            var stash = Get(playerName);
+            if (stash == null)
             {
                 ids = new int[0];
                 counts = new int[0];
+                slots = 1;
                 return;
             }
-            ids = (int[])stash.itemIds.Clone();
-            counts = (int[])stash.itemCounts.Clone();
-            stash.itemIds = new int[0];
-            stash.itemCounts = new int[0];
+            slots = stash.loadoutSlots | 1;
+            ids = stash.loadoutItemIds != null ? (int[])stash.loadoutItemIds.Clone() : new int[0];
+            counts = stash.loadoutItemCounts != null ? (int[])stash.loadoutItemCounts.Clone() : new int[0];
+            stash.loadoutItemIds = new int[0];
+            stash.loadoutItemCounts = new int[0];
             Save(stash);
+        }
+
+        // Small array helpers for the parallel id/count lists.
+        private static int TakeAll(ref int[] ids, ref int[] counts, int itemId)
+        {
+            var idList = new List<int>(ids ?? new int[0]);
+            var countList = new List<int>(counts ?? new int[0]);
+            int at = idList.IndexOf(itemId);
+            if (at < 0) return 0;
+            int count = countList[at];
+            idList.RemoveAt(at);
+            countList.RemoveAt(at);
+            ids = idList.ToArray();
+            counts = countList.ToArray();
+            return count;
+        }
+
+        private static void AddTo(ref int[] ids, ref int[] counts, int itemId, int count)
+        {
+            var idList = new List<int>(ids ?? new int[0]);
+            var countList = new List<int>(counts ?? new int[0]);
+            int at = idList.IndexOf(itemId);
+            if (at >= 0) countList[at] += count;
+            else { idList.Add(itemId); countList.Add(count); }
+            ids = idList.ToArray();
+            counts = countList.ToArray();
         }
 
         /// Merges a raid's haul into the player's stash: item counts add up,

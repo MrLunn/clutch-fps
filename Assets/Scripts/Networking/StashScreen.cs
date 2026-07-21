@@ -40,7 +40,7 @@ namespace ClutchFPS.Networking
             _tab = UITheme.Segmented(new Rect(x, panel.y + 44f, 240f, 26f), new[] { "STASH", "MARKET" }, _tab);
 
             float top = panel.y + 84f;
-            if (_tab == 0) DrawStashTab(panel, stash, x, w, top);
+            if (_tab == 0) DrawStashTab(panel, playerName, stash, x, w, top);
             else DrawMarketTab(panel, playerName, stash, x, w, top);
 
             // Footer: Fresh Start (left) and Close (right).
@@ -70,56 +70,112 @@ namespace ClutchFPS.Networking
 
         // ---------- stash tab ----------
 
-        private static void DrawStashTab(Rect panel, StashService.StashEntry stash, float x, float w, float y)
+        /// Two columns: the safe stash (Equip to move gear right) and the raid
+        /// loadout (Unequip to move it back). Only the loadout goes into a raid.
+        private static void DrawStashTab(Rect panel, string playerName, StashService.StashEntry stash,
+            float x, float w, float y)
         {
-            UITheme.Header(new Rect(x, y, w, 18f), "Weapons");
-            y += 26f;
+            float colW = (w - 20f) / 2f;
+            float lx = x, rx = x + colW + 20f;
+            float bottom = panel.yMax - 66f;
+
+            UITheme.Header(new Rect(lx, y, colW, 18f), "Stash — safe");
+            UITheme.Header(new Rect(rx, y, colW, 18f), "Loadout — going in");
+            float ly = y + 26f, ry = y + 26f;
+
+            // Weapons: owned-but-not-equipped on the left, equipped on the right.
             for (int slot = 0; slot < 3; slot++)
             {
                 if (((stash.ownedSlots >> slot) & 1) != 1) continue;
                 int variant = stash.weaponVariants != null && slot < stash.weaponVariants.Length
                     ? stash.weaponVariants[slot] : -1;
                 WeaponData data = variant >= 0 && Database != null ? Database.Get(variant) : null;
-                string label = data != null ? data.weaponName : $"Slot {slot + 1} weapon";
+                string label = (data != null ? data.weaponName : $"Slot {slot + 1} weapon").ToUpper();
                 var tint = data != null ? RarityColors.Get(data.rarity) : Color.white;
+                var icon = IconLibrary.Weapon(variant >= 0 ? variant : slot);
+                bool equipped = ((stash.loadoutSlots >> slot) & 1) == 1;
 
-                Rect row = new(x, y, w, 42f);
-                UITheme.Fill(row, new Color(0.10f, 0.11f, 0.12f, 0.9f));
-                UITheme.Fill(new Rect(row.x, row.y, 3f, row.height), tint);
-                IconLibrary.Draw(new Rect(row.x + 12f, row.y + 6f, 30f, 30f),
-                    IconLibrary.Weapon(variant >= 0 ? variant : slot), tint);
-                GUI.Label(new Rect(row.x + 52f, row.y, row.width - 120f, row.height), label.ToUpper(),
-                    UITheme.Style(14, FontStyle.Bold, TextAnchor.MiddleLeft, tint));
-                GUI.Label(new Rect(row.x, row.y, row.width - 12f, row.height), $"SLOT {slot + 1}",
-                    UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleRight, UITheme.TextDim));
-                y += 48f;
+                if (equipped)
+                {
+                    // Slot 0 is locked in; others can be sent home.
+                    if (GearRow(new Rect(rx, ry, colW, 42f), icon, tint, label, $"Slot {slot + 1}",
+                        slot == 0 ? null : "Unequip"))
+                        StashService.UnequipWeapon(playerName, slot);
+                    ry += 48f;
+                }
+                else
+                {
+                    if (GearRow(new Rect(lx, ly, colW, 42f), icon, tint, label, $"Slot {slot + 1}", "Equip"))
+                        StashService.EquipWeapon(playerName, slot);
+                    ly += 48f;
+                }
             }
 
-            y += 6f;
-            UITheme.Header(new Rect(x, y, w, 18f), "Items");
-            y += 26f;
-            if (stash.itemIds == null || stash.itemIds.Length == 0)
+            // Safe items (left) — Equip moves them into the loadout.
+            if (stash.itemIds != null)
             {
-                GUI.Label(new Rect(x, y, w, 20f), "Empty — everything's out on a run or spent.",
-                    UITheme.Style(12, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextDim));
-                return;
+                for (int i = 0; i < stash.itemIds.Length && ly < bottom; i++)
+                {
+                    var info = Items.Get(stash.itemIds[i]);
+                    if (GearRow(new Rect(lx, ly, colW, 42f), IconLibrary.Item(stash.itemIds[i]), info.Tint,
+                        info.Name, $"x{stash.itemCounts[i]}", "Equip"))
+                        StashService.EquipItem(playerName, stash.itemIds[i]);
+                    ly += 48f;
+                }
             }
-            const float cellW = 184f, cellH = 44f, gap = 8f;
-            for (int i = 0; i < stash.itemIds.Length; i++)
+            if ((stash.itemIds == null || stash.itemIds.Length == 0) && CountEquippedWeapons(stash, true) == 0)
             {
-                int col = i % 3, rowIndex = i / 3;
-                Rect cell = new(x + col * (cellW + gap), y + rowIndex * (cellH + gap), cellW, cellH);
-                if (cell.yMax > panel.yMax - 70f) break;
-                var info = Items.Get(stash.itemIds[i]);
-                UITheme.Fill(cell, new Color(0.10f, 0.11f, 0.12f, 0.9f));
-                UITheme.Fill(new Rect(cell.x, cell.y, 3f, cell.height), info.Tint);
-                IconLibrary.Draw(new Rect(cell.x + 10f, cell.y + 8f, 28f, 28f),
-                    IconLibrary.Item(stash.itemIds[i]), info.Tint);
-                GUI.Label(new Rect(cell.x + 46f, cell.y + 4f, cell.width - 54f, 20f), info.Name,
-                    UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextBright));
-                GUI.Label(new Rect(cell.x + 46f, cell.y + 22f, cell.width - 54f, 18f), $"x{stash.itemCounts[i]}",
+                GUI.Label(new Rect(lx, ly, colW, 20f), "Nothing spare.",
                     UITheme.Style(12, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextDim));
             }
+
+            // Loadout items (right) — Unequip sends them back to the safe stash.
+            if (stash.loadoutItemIds != null)
+            {
+                for (int i = 0; i < stash.loadoutItemIds.Length && ry < bottom; i++)
+                {
+                    var info = Items.Get(stash.loadoutItemIds[i]);
+                    if (GearRow(new Rect(rx, ry, colW, 42f), IconLibrary.Item(stash.loadoutItemIds[i]), info.Tint,
+                        info.Name, $"x{stash.loadoutItemCounts[i]}", "Unequip"))
+                        StashService.UnequipItem(playerName, stash.loadoutItemIds[i]);
+                    ry += 48f;
+                }
+            }
+        }
+
+        private static int CountEquippedWeapons(StashService.StashEntry stash, bool unequipped)
+        {
+            int n = 0;
+            for (int slot = 0; slot < 3; slot++)
+            {
+                if (((stash.ownedSlots >> slot) & 1) != 1) continue;
+                bool equipped = ((stash.loadoutSlots >> slot) & 1) == 1;
+                if (equipped != unequipped) n++;
+            }
+            return n;
+        }
+
+        /// A gear row with an icon, label, sub-line and a right-side action
+        /// button. A null button text renders a dim "LOCKED" tag instead.
+        private static bool GearRow(Rect row, Sprite icon, Color tint, string label, string sub, string button)
+        {
+            UITheme.Fill(row, new Color(0.10f, 0.11f, 0.12f, 0.9f));
+            UITheme.Fill(new Rect(row.x, row.y, 3f, row.height), tint);
+            IconLibrary.Draw(new Rect(row.x + 8f, row.y + 7f, 28f, 28f), icon, tint);
+            GUI.Label(new Rect(row.x + 42f, row.y + 4f, row.width - 110f, 20f), label,
+                UITheme.Style(13, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextBright));
+            if (!string.IsNullOrEmpty(sub))
+            {
+                GUI.Label(new Rect(row.x + 42f, row.y + 22f, row.width - 110f, 16f), sub,
+                    UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextDim));
+            }
+            if (button == null)
+            {
+                GUI.Label(new Rect(row.xMax - 66f, row.y, 58f, row.height), "LOCKED",
+                    UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
+                return false;
+            }
+            return UITheme.Button(new Rect(row.xMax - 66f, row.y + 9f, 58f, 26f), button);
         }
 
         // ---------- market tab ----------

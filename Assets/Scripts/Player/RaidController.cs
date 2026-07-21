@@ -110,10 +110,14 @@ namespace ClutchFPS.Player
             StashService.EnsureStarter(_playerName);
             var stash = StashService.Get(_playerName);
 
-            // Banked weapons come with you (owned slots persist across raids).
+            // Check out the equipped loadout: which weapon slots to bring and
+            // which items ride along (removed from the loadout, so death loses
+            // them and extract deposits them back to the safe stash).
+            StashService.CheckoutLoadout(_playerName, out int[] loadIds, out int[] loadCounts, out int loadoutSlots);
+
             if (stash != null)
             {
-                _weapons.ServerApplyLoadout(stash.ownedSlots, stash.weaponVariants);
+                _weapons.ServerApplyLoadout(loadoutSlots, stash.weaponVariants);
             }
 
             // A free base ammo kit each raid so you're never sent in dry...
@@ -121,10 +125,7 @@ namespace ClutchFPS.Player
                 { (int)ItemType.Ammo556, (int)ItemType.Ammo9mm };
             var counts = new System.Collections.Generic.List<int> { 60, 30 };
 
-            // ...plus your stash consumables, checked out for the raid: removed
-            // from the stash now, deposited back on extract, lost on death.
-            // This is what gives bought medkits and ammo real stakes.
-            StashService.CheckoutItems(_playerName, out int[] loadIds, out int[] loadCounts);
+            // ...plus the equipped consumables on top.
             for (int i = 0; i < loadIds.Length; i++)
             {
                 int at = ids.IndexOf(loadIds[i]);
