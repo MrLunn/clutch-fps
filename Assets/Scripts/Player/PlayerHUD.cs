@@ -36,7 +36,9 @@ namespace ClutchFPS.Player
         // Radar contacts, refreshed a few times a second rather than every
         // OnGUI pass (OnGUI runs twice a frame; FindObjects is not free).
         private readonly List<(Vector3 pos, Color color)> _radarBlips = new();
+        private readonly List<Vector3> _extractPositions = new();
         private float _nextRadarScan;
+        private Camera _viewCamera;
 
         private void Update()
         {
@@ -116,6 +118,8 @@ namespace ClutchFPS.Player
             DrawKillFeed();
             DrawPractice();
             DrawRaidTimer();
+            DrawExtractMarkers();
+            DrawDamageIndicators();
             DrawExtraction();
             if (Keyboard.current != null && Keyboard.current.vKey.isPressed) DrawScoreboard();
             if (_settingsOpen) DrawSettings();
@@ -151,6 +155,12 @@ namespace ClutchFPS.Player
             {
                 if (other == respawn || other.IsDead) continue;
                 _radarBlips.Add((other.transform.position, Core.UITheme.Success));
+            }
+
+            _extractPositions.Clear();
+            foreach (var zone in FindObjectsByType<Environment.ExtractionZone>(FindObjectsSortMode.None))
+            {
+                _extractPositions.Add(zone.transform.position);
             }
         }
 
@@ -477,6 +487,89 @@ namespace ClutchFPS.Player
             GUI.Label(new Rect(panel.x + 24f, panel.yMax - 26f, pw - 48f, 18f),
                 "4  USE MEDKIT      ·      DROPPED LOOT AUTO-COLLECTS ON WALK-OVER      ·      TAB  CLOSE",
                 Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
+        }
+
+        /// Green markers pointing to the extraction pads: a labelled dot when
+        /// on screen, or a dot pinned to the screen edge in the pad's direction
+        /// when it's off screen or behind you.
+        private void DrawExtractMarkers()
+        {
+            if (raid == null || !raid.RaidActive || raid.HasExtracted) return;
+            if (respawn != null && respawn.IsDead) return;
+            if (_viewCamera == null) _viewCamera = GetComponentInChildren<Camera>();
+            if (_viewCamera == null || _extractPositions.Count == 0) return;
+
+            Color green = Core.UITheme.Success;
+            Vector2 centre = new(Screen.width / 2f, Screen.height / 2f);
+            const float margin = 64f;
+
+            foreach (var pos in _extractPositions)
+            {
+                Vector3 sp = _viewCamera.WorldToScreenPoint(pos + Vector3.up * 1.4f);
+                bool behind = sp.z <= 0f;
+                Vector2 g = new(sp.x, Screen.height - sp.y);
+                Vector2 fromCentre = g - centre;
+                if (behind) fromCentre = -fromCentre;
+
+                Rect bounds = new(margin, margin, Screen.width - 2f * margin, Screen.height - 2f * margin);
+                bool onScreen = !behind && bounds.Contains(g);
+                Vector2 at;
+                if (onScreen)
+                {
+                    at = g;
+                }
+                else
+                {
+                    // Push to the border rectangle in the pad's direction.
+                    if (fromCentre.sqrMagnitude < 1f) fromCentre = new Vector2(0f, -1f);
+                    Vector2 dir = fromCentre.normalized;
+                    float scale = Mathf.Min(
+                        (bounds.width / 2f) / Mathf.Max(Mathf.Abs(dir.x), 1e-4f),
+                        (bounds.height / 2f) / Mathf.Max(Mathf.Abs(dir.y), 1e-4f));
+                    at = centre + dir * scale;
+                }
+
+                float dist = Vector3.Distance(transform.position, pos);
+                GUI.color = green;
+                GUI.DrawTexture(new Rect(at.x - 4f, at.y - 4f, 8f, 8f), Pixel);
+                GUI.color = Color.white;
+                GUI.Label(new Rect(at.x - 60f, at.y + 6f, 120f, 16f),
+                    onScreen ? $"EXTRACT  {Mathf.RoundToInt(dist)}m" : $"EXTRACT ▸ {Mathf.RoundToInt(dist)}m",
+                    Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, green));
+            }
+        }
+
+        /// Red arcs around the crosshair pointing back toward recent hits.
+        private void DrawDamageIndicators()
+        {
+            var hits = PlayerRespawn.LocalDamage;
+            if (hits.Count == 0) return;
+
+            Vector2 centre = new(Screen.width / 2f, Screen.height / 2f);
+            float yaw = transform.eulerAngles.y;
+            var prevColor = GUI.color;
+            var prevMatrix = GUI.matrix;
+
+            // Iterate a copy-safe index range (list is pruned by the getter).
+            for (int i = 0; i < hits.Count; i++)
+            {
+                var hit = hits[i];
+                Vector3 d = hit.Source - transform.position;
+                d.y = 0f;
+                if (d.sqrMagnitude < 0.01f) continue;
+
+                float worldAngle = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+                float relative = Mathf.DeltaAngle(yaw, worldAngle);
+                float alpha = Mathf.Clamp01(1f - (Time.time - hit.Time) / 1.2f);
+
+                GUI.matrix = prevMatrix;
+                GUIUtility.RotateAroundPivot(relative, centre);
+                GUI.color = new Color(0.95f, 0.12f, 0.12f, 0.6f * alpha);
+                GUI.DrawTexture(new Rect(centre.x - 46f, centre.y - 116f, 92f, 9f), Pixel);
+            }
+
+            GUI.color = prevColor;
+            GUI.matrix = prevMatrix;
         }
 
         private void DrawRaidTimer()

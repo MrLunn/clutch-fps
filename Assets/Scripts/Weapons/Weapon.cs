@@ -259,6 +259,8 @@ namespace ClutchFPS.Weapons
                     ulong attackerId = rpcParams.Receive.SenderClientId;
                     damageable.TakeDamage(damage, attackerId);
                     killed = damageable is Health targetHealth && targetHealth.CurrentHealth <= 0f;
+                    // Tell the victim which way the shot came from.
+                    hit.collider.GetComponentInParent<Player.PlayerRespawn>()?.ServerReportDamage(origin);
                 }
                 else
                 {

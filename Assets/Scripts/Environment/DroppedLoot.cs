@@ -95,17 +95,36 @@ namespace ClutchFPS.Environment
             }
         }
 
+        private Light _glow;
+
         /// Colour the drop by what it holds — item tint, or weapon rarity — so
-        /// you can tell from across a room whether it is worth the walk.
+        /// you can tell from across a room whether it is worth the walk. Also
+        /// lights a small glow in the same colour for visibility.
         private void ApplyTint()
         {
-            if (visual == null || !visual.TryGetComponent<Renderer>(out var renderer)) return;
             Color tint = IsWeapon ? RarityColors.Get(Rarity) : Items.Get(_itemId.Value).Tint;
-            var block = new MaterialPropertyBlock();
-            renderer.GetPropertyBlock(block);
-            block.SetColor("_BaseColor", tint);
-            block.SetColor("_Color", tint);
-            renderer.SetPropertyBlock(block);
+
+            if (visual != null && visual.TryGetComponent<Renderer>(out var renderer))
+            {
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                block.SetColor("_BaseColor", tint);
+                block.SetColor("_Color", tint);
+                renderer.SetPropertyBlock(block);
+            }
+
+            if (_glow == null)
+            {
+                var go = new GameObject("Glow");
+                go.transform.SetParent(transform, false);
+                go.transform.localPosition = Vector3.up * 0.4f;
+                _glow = go.AddComponent<Light>();
+                _glow.type = LightType.Point;
+                _glow.range = 3f;
+                _glow.intensity = 2.4f;
+                _glow.shadows = LightShadows.None;
+            }
+            _glow.color = tint;
         }
 
         private void Update()

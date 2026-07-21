@@ -229,6 +229,7 @@ namespace ClutchFPS.Environment
                 hitPoint = hit.point;
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 damageable?.TakeDamage(damage, AiClientId);
+                hit.collider.GetComponentInParent<PlayerRespawn>()?.ServerReportDamage(eye);
             }
             ShotEffectClientRpc(eye, hitPoint);
         }

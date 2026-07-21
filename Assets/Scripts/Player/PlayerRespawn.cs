@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ClutchFPS.Core;
 using ClutchFPS.Networking;
 using ClutchFPS.Weapons;
@@ -39,6 +40,38 @@ namespace ClutchFPS.Player
 
         public string ResolvedName =>
             DisplayName.Value.IsEmpty ? $"Player {OwnerClientId}" : DisplayName.Value.ToString();
+
+        // Recent incoming-damage sources for the local player, used by the HUD
+        // to draw directional indicators. Static because only one player is
+        // local; entries age out after a short window.
+        public struct DamageHit { public Vector3 Source; public float Time; }
+        private static readonly List<DamageHit> _localDamage = new();
+        public static IReadOnlyList<DamageHit> LocalDamage
+        {
+            get
+            {
+                _localDamage.RemoveAll(h => Time.time - h.Time > 1.2f);
+                return _localDamage;
+            }
+        }
+
+        /// Server-side: tell the victim's owner where a hit came from.
+        public void ServerReportDamage(Vector3 source)
+        {
+            if (!IsServer) return;
+            var target = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams { TargetClientIds = new[] { OwnerClientId } }
+            };
+            ReportDamageClientRpc(source, target);
+        }
+
+        [ClientRpc]
+        private void ReportDamageClientRpc(Vector3 source, ClientRpcParams _ = default)
+        {
+            if (!IsOwner) return;
+            _localDamage.Add(new DamageHit { Source = source, Time = Time.time });
+        }
 
         private void Awake()
         {
