@@ -353,8 +353,11 @@ namespace ClutchFPS.Player
             // FOV: ADS zoom wins, then the sprint kick, else base.
             if (_camera != null)
             {
+                // Base FOV is the player's setting; ADS and the sprint kick are
+                // offsets from it so the preference always shows through.
+                _baseFov = GameSettings.Fov;
                 float targetFov = aiming ? _aimFov
-                    : sprinting && planarSpeed > walkSpeed * 0.9f ? sprintFov
+                    : sprinting && planarSpeed > walkSpeed * 0.9f ? Mathf.Max(sprintFov, _baseFov + 6f)
                     : _baseFov;
                 _camera.fieldOfView = Mathf.Lerp(_camera.fieldOfView, targetFov, (aiming ? 12f : 8f) * Time.deltaTime);
             }

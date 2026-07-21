@@ -22,6 +22,7 @@ namespace ClutchFPS.Networking
         {
             _name = Player.PlayerIdentity.LocalName;
             Player.DisplaySettings.ApplySavedIfAny();
+            Player.GameSettings.ApplySavedIfAny();
         }
 
         private void Start()
@@ -210,11 +211,13 @@ namespace ClutchFPS.Networking
 
         private void DrawSettingsPanel(Rect anchor)
         {
-            Rect panel = new(anchor.xMax + 14f, anchor.y, 300f, 306f);
+            Rect panel = new(anchor.xMax + 14f, anchor.y, 300f, 430f);
             UITheme.Panel3D(panel);
             UITheme.Header(new Rect(panel.x + 18f, panel.y + 16f, panel.width - 36f, 18f), "Display");
             GUILayout.BeginArea(new Rect(panel.x + 18f, panel.y + 44f, panel.width - 36f, panel.height - 60f));
             Player.DisplaySettings.DrawControls();
+            GUILayout.Space(10);
+            Player.GameSettings.DrawControls();
             GUILayout.EndArea();
         }
 

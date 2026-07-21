@@ -960,7 +960,7 @@ namespace ClutchFPS.Player
 
         private void DrawSettings()
         {
-            const float panelW = 340f, panelH = 430f;
+            const float panelW = 340f, panelH = 540f;
             Rect panel = new(Screen.width / 2f - panelW / 2f, Screen.height / 2f - panelH / 2f, panelW, panelH);
             UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.55f));
             UITheme.Panel3D(panel);
@@ -1005,6 +1005,15 @@ namespace ClutchFPS.Player
             y += 38f;
             MouseSettings.InvertY = UITheme.Toggle(new Rect(x, y, w, 20f), "Invert Y axis", MouseSettings.InvertY);
             y += 32f;
+
+            UITheme.Header(new Rect(x, y, w, 18f), "Game");
+            y += 26f;
+            GameSettings.Fov = UITheme.Slider(new Rect(x, y, w, 30f), "Field of view",
+                GameSettings.Fov, GameSettings.MinFov, GameSettings.MaxFov, "0");
+            y += 38f;
+            GameSettings.MasterVolume = UITheme.Slider(new Rect(x, y, w, 30f), "Master volume",
+                GameSettings.MasterVolume, 0f, 1f, "0.00");
+            y += 40f;
 
             UITheme.Header(new Rect(x, y, w, 18f), "Display");
             y += 26f;
