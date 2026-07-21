@@ -1,6 +1,5 @@
 using ClutchFPS.Core;
 using Unity.Netcode;
-using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 
 namespace ClutchFPS.Networking
@@ -10,7 +9,7 @@ namespace ClutchFPS.Networking
     /// Attach to the same GameObject as the NetworkManager.
     public class NetworkBootstrap : MonoBehaviour
     {
-        private string _address = "127.0.0.1";
+        private string _joinCode = "";
         private string _name;
 
         private static readonly string[] MapNames = { "RANGE", "COMPLEX" };
@@ -37,9 +36,8 @@ namespace ClutchFPS.Networking
             _pendingHost = false;
             var networkManager = NetworkManager.Singleton;
             if (networkManager == null) return;
-            GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
             EnsureRuntimePrefabs(networkManager);
-            networkManager.StartHost();
+            ConnectionService.Host();
         }
 
         /// Wordmark, drawn procedurally so it needs no art: a heavy CLUTCH in
@@ -78,35 +76,6 @@ namespace ClutchFPS.Networking
             UITheme.Fill(new Rect(Screen.width / 2f + gap, ruleY, 60f, 1f), UITheme.AccentDim);
         }
 
-        private static UnityTransport GetTransport(NetworkManager networkManager)
-        {
-            return networkManager.NetworkConfig.NetworkTransport as UnityTransport;
-        }
-
-        private static string _localIp;
-        /// This machine's LAN IPv4, resolved once, for the host to share.
-        private static string LocalIPv4
-        {
-            get
-            {
-                if (_localIp != null) return _localIp;
-                _localIp = "127.0.0.1";
-                try
-                {
-                    foreach (var ip in System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList)
-                    {
-                        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
-                            && !System.Net.IPAddress.IsLoopback(ip))
-                        {
-                            _localIp = ip.ToString();
-                            break;
-                        }
-                    }
-                }
-                catch (System.Exception) { /* fall back to loopback */ }
-                return _localIp;
-            }
-        }
 
         // Prefabs spawned at runtime (dropped loot) must be registered before
         // connecting, identically on host and clients so the spawn hashes
@@ -121,9 +90,8 @@ namespace ClutchFPS.Networking
             catch (System.Exception) { /* already registered */ }
         }
 
-        // Explicitly release the transport socket when play mode ends or the
-        // app quits; otherwise the editor process keeps UDP 7777 bound and the
-        // next StartHost fails with a transport start failure.
+        // Cleanly tear down the network session when play mode ends or the app
+        // quits, so the relay allocation is released instead of lingering.
         private void OnDestroy()
         {
             if (NetworkManager.Singleton != null)
@@ -145,7 +113,13 @@ namespace ClutchFPS.Networking
             var networkManager = NetworkManager.Singleton;
             if (networkManager == null) return;
 
-            if (networkManager.IsClient || networkManager.IsServer) return;
+            // In a live session, show the host's join code so a friend can hop
+            // in; otherwise the in-game HUD owns the screen.
+            if (networkManager.IsClient || networkManager.IsServer)
+            {
+                DrawSessionOverlay(networkManager);
+                return;
+            }
 
             DrawBackdrop();
             DrawLogo();
@@ -187,16 +161,15 @@ namespace ClutchFPS.Networking
             _mapIndex = UITheme.Segmented(new Rect(x, y, w, 26f), MapNames, _mapIndex);
             y += 34f;
 
+            bool busy = ConnectionService.Busy;
+
             UITheme.Header(new Rect(x, y, w, 18f), "Deploy");
             y += 26f;
-            if (UITheme.Button(new Rect(x, y, w, 40f), "Host Raid", primary: true))
+            if (UITheme.Button(new Rect(x, y, w, 40f), busy ? "Connecting…" : "Host Raid", primary: true) && !busy)
             {
                 Player.PlayerIdentity.LocalName = _name;
-                // Listen on all interfaces so LAN/VPN clients can reach us.
-                GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
-
                 // Load the chosen map before hosting; Netcode scene management
-                // then syncs it to anyone who joins.
+                // then syncs it to anyone who joins via the session.
                 string wanted = MapScenes[_mapIndex];
                 if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != wanted)
                 {
@@ -206,25 +179,33 @@ namespace ClutchFPS.Networking
                 else
                 {
                     EnsureRuntimePrefabs(networkManager);
-                    networkManager.StartHost();
+                    ConnectionService.Host();
                 }
             }
             y += 48f;
 
-            float ipWidth = w * 0.54f;
-            _address = DrawField(new Rect(x, y, ipWidth, 32f), _address, 24);
-            if (UITheme.Button(new Rect(x + ipWidth + 8f, y, w - ipWidth - 8f, 32f), "Join"))
+            // Join by code — Relay resolves it, no IP or port-forwarding needed.
+            float codeWidth = w * 0.54f;
+            _joinCode = DrawField(new Rect(x, y, codeWidth, 32f), _joinCode, 8).ToUpperInvariant();
+            if (UITheme.Button(new Rect(x + codeWidth + 8f, y, w - codeWidth - 8f, 32f), "Join") && !busy)
             {
                 Player.PlayerIdentity.LocalName = _name;
-                GetTransport(networkManager)?.SetConnectionData(_address.Trim(), 7777);
                 EnsureRuntimePrefabs(networkManager);
-                networkManager.StartClient();
+                ConnectionService.Join(_joinCode);
             }
-            y += 38f;
+            y += 34f;
 
-            // The host shares this so a friend can type it into Join (LAN/VPN).
-            GUI.Label(new Rect(x, y, w, 16f), $"YOUR IP  {LocalIPv4}   ·   share for LAN / VPN play",
-                UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
+            // Status / hint line.
+            if (ConnectionService.Status == ConnectionService.State.Error)
+            {
+                GUI.Label(new Rect(x, y, w, 18f), ConnectionService.LastError,
+                    UITheme.Style(10, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.Danger));
+            }
+            else
+            {
+                GUI.Label(new Rect(x, y, w, 16f), "Host to get a code · enter a friend's code to join",
+                    UITheme.Style(10, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
+            }
             y += 22f;
 
             float half = (w - 8f) / 2f;
@@ -340,6 +321,26 @@ namespace ClutchFPS.Networking
             GUILayout.Space(10);
             Player.GameSettings.DrawControls();
             GUILayout.EndArea();
+        }
+
+        /// While hosting, a small chip shows the join code so a friend can hop
+        /// in. Clients (not the server) see nothing here — the HUD owns the screen.
+        private void DrawSessionOverlay(NetworkManager networkManager)
+        {
+            if (!networkManager.IsServer || string.IsNullOrEmpty(ConnectionService.JoinCode)) return;
+
+            const float w = 196f, h = 46f;
+            Rect chip = new(Screen.width - w - 16f, 14f, w, h);
+            UITheme.Fill(chip, new Color(0.05f, 0.06f, 0.07f, 0.85f));
+            UITheme.Fill(new Rect(chip.x, chip.yMax - 2f, chip.width, 2f), UITheme.Accent);
+            GUI.Label(new Rect(chip.x + 12f, chip.y + 5f, chip.width - 24f, 14f), "JOIN CODE",
+                UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
+            GUI.Label(new Rect(chip.x + 12f, chip.y + 17f, chip.width - 70f, 24f), ConnectionService.JoinCode,
+                UITheme.Style(20, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.Accent));
+            if (UITheme.Button(new Rect(chip.xMax - 56f, chip.y + 12f, 48f, 24f), "Copy"))
+            {
+                GUIUtility.systemCopyBuffer = ConnectionService.JoinCode;
+            }
         }
 
         /// Darkens the live 3D scene behind the menu and frames it.

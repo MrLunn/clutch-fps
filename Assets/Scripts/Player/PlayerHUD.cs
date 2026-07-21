@@ -697,6 +697,7 @@ namespace ClutchFPS.Player
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
+                Networking.ConnectionService.Leave();
                 if (NetworkManager.Singleton != null) NetworkManager.Singleton.Shutdown();
             }
         }
