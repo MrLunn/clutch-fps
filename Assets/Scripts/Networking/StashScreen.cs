@@ -12,6 +12,7 @@ namespace ClutchFPS.Networking
         public static bool Open;
         private static int _tab;       // 0 = stash, 1 = market
         private static bool _confirmReset;
+        private static Vector2 _buyScroll;
 
         private static WeaponDatabase _database;
         private static WeaponDatabase Database =>
@@ -186,12 +187,16 @@ namespace ClutchFPS.Networking
             float colW = (w - 20f) / 2f;
             float bx = x, sx = x + colW + 20f;
 
-            // Buy column.
+            // Buy column — scrolls, since the catalogue outgrows the panel.
             UITheme.Header(new Rect(bx, y, colW, 18f), "Buy");
-            float by = y + 26f;
+            Rect clip = new(bx, y + 24f, colW, panel.yMax - 66f - (y + 24f));
+            float contentH = Market.BuyOffers.Length * 50f;
+            _buyScroll = GUI.BeginScrollView(clip, _buyScroll, new Rect(0f, 0f, colW - 18f, contentH));
+            float rowW = colW - 18f;
+            float by = 0f;
             foreach (var offer in Market.BuyOffers)
             {
-                Rect row = new(bx, by, colW, 44f);
+                Rect row = new(0f, by, rowW, 44f);
                 var tint = offer.IsWeapon ? RarityColors.Get(offer.Rarity) : Items.Get(offer.ItemId).Tint;
                 UITheme.Fill(row, new Color(0.10f, 0.11f, 0.12f, 0.9f));
                 UITheme.Fill(new Rect(row.x, row.y, 3f, row.height), tint);
@@ -218,6 +223,7 @@ namespace ClutchFPS.Networking
                 }
                 by += 50f;
             }
+            GUI.EndScrollView();
 
             // Sell column.
             UITheme.Header(new Rect(sx, y, colW, 18f), "Sell loot");

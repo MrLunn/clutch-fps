@@ -337,12 +337,39 @@ namespace ClutchFPS.Environment
             {
                 LootSpawner.SpawnItem(Scatter(basePos), (int)ItemType.Medkit, 1);
             }
-            // Occasional weapon: pistol (slot 1) or SMG (slot 2), stock variant.
-            if (Random.value < 0.12f)
+            // Occasional weapon, rarity-weighted so rares/epics feel earned.
+            if (Random.value < 0.18f)
             {
-                int slot = Random.value < 0.6f ? 1 : 2;
-                LootSpawner.SpawnWeapon(Scatter(basePos), slot, -1);
+                var (slot, variant) = RollWeaponDrop();
+                LootSpawner.SpawnWeapon(Scatter(basePos), slot, variant);
             }
+        }
+
+        // (slot, variant, weight) — commons drop often, an epic almost never.
+        private static readonly (int slot, int variant, float weight)[] WeaponDropTable =
+        {
+            (1, -1, 4f),  // Pistol (common)
+            (2, -1, 4f),  // SMG (common)
+            (0,  4, 3f),  // Carbine (uncommon)
+            (1,  6, 3f),  // Machine Pistol (uncommon)
+            (2,  8, 3f),  // PDW (uncommon)
+            (0,  5, 1.4f),// Marksman (rare)
+            (1,  7, 1.4f),// Magnum (rare)
+            (0,  3, 1.2f),// Rare Rifle (rare)
+            (2,  9, 0.5f),// Vector (epic)
+        };
+
+        private static (int slot, int variant) RollWeaponDrop()
+        {
+            float total = 0f;
+            foreach (var e in WeaponDropTable) total += e.weight;
+            float roll = Random.value * total;
+            foreach (var e in WeaponDropTable)
+            {
+                roll -= e.weight;
+                if (roll <= 0f) return (e.slot, e.variant);
+            }
+            return (1, -1);
         }
 
         private static Vector3 Scatter(Vector3 origin)

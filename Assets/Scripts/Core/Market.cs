@@ -19,12 +19,21 @@ namespace ClutchFPS.Core
 
         public static readonly Offer[] BuyOffers =
         {
-            new() { Name = "Medkit",       Price = 800,   ItemId = (int)ItemType.Medkit,  Count = 1 },
-            new() { Name = "5.56 x30",     Price = 450,   ItemId = (int)ItemType.Ammo556, Count = 30 },
-            new() { Name = "9mm x30",      Price = 300,   ItemId = (int)ItemType.Ammo9mm, Count = 30 },
-            new() { Name = "Pistol",       Price = 2000,  IsWeapon = true, Slot = 1, Variant = -1, Rarity = Rarity.Common },
-            new() { Name = "SMG",          Price = 5000,  IsWeapon = true, Slot = 2, Variant = -1, Rarity = Rarity.Uncommon },
-            new() { Name = "Rare Rifle",   Price = 12000, IsWeapon = true, Slot = 0, Variant = 3,  Rarity = Rarity.Rare },
+            new() { Name = "Medkit",         Price = 800,   ItemId = (int)ItemType.Medkit,  Count = 1 },
+            new() { Name = "5.56 x30",       Price = 450,   ItemId = (int)ItemType.Ammo556, Count = 30 },
+            new() { Name = "9mm x30",        Price = 300,   ItemId = (int)ItemType.Ammo9mm, Count = 30 },
+            // Pistols (slot 1)
+            new() { Name = "Pistol",         Price = 2000,  IsWeapon = true, Slot = 1, Variant = -1, Rarity = Rarity.Common },
+            new() { Name = "Machine Pistol", Price = 3000,  IsWeapon = true, Slot = 1, Variant = 6,  Rarity = Rarity.Uncommon },
+            new() { Name = "Magnum",         Price = 8000,  IsWeapon = true, Slot = 1, Variant = 7,  Rarity = Rarity.Rare },
+            // ARs (slot 0)
+            new() { Name = "Carbine",        Price = 3500,  IsWeapon = true, Slot = 0, Variant = 4,  Rarity = Rarity.Uncommon },
+            new() { Name = "Marksman",       Price = 9000,  IsWeapon = true, Slot = 0, Variant = 5,  Rarity = Rarity.Rare },
+            new() { Name = "Rare Rifle",     Price = 12000, IsWeapon = true, Slot = 0, Variant = 3,  Rarity = Rarity.Rare },
+            // SMGs (slot 2)
+            new() { Name = "SMG",            Price = 5000,  IsWeapon = true, Slot = 2, Variant = -1, Rarity = Rarity.Uncommon },
+            new() { Name = "PDW",            Price = 4500,  IsWeapon = true, Slot = 2, Variant = 8,  Rarity = Rarity.Uncommon },
+            new() { Name = "Vector",         Price = 15000, IsWeapon = true, Slot = 2, Variant = 9,  Rarity = Rarity.Epic },
         };
 
         /// Per-unit sell price for a stash item.
