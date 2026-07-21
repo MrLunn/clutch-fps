@@ -13,13 +13,25 @@ namespace ClutchFPS.Player
         public float jumpHeight = 1.2f;
         [SerializeField] private float gravity = -20f;
 
-        [Header("Feel")]
-        [Tooltip("How fast you reach top speed; lower = heavier start.")]
-        public float acceleration = 40f;
-        [Tooltip("How fast you stop; lower = more slide.")]
-        public float deceleration = 50f;
-        [Tooltip("Fraction of accel/decel available mid-air.")]
-        public float airControl = 0.35f;
+        [Header("Feel — Source/CS-style movement")]
+        // These three drive a Quake/Source movement model: strong ground
+        // friction plus fast acceleration gives crisp counter-strafe stops,
+        // while a capped air-acceleration lets you air-strafe and bunny-hop.
+        [Tooltip("Ground acceleration. Higher = snaps to top speed faster.")]
+        public float acceleration = 12f;
+        [Tooltip("Ground friction. Higher = stops harder (crisper counter-strafe).")]
+        public float deceleration = 6f;
+        [Tooltip("Air acceleration. This is what makes air-strafing work.")]
+        public float airControl = 14f;
+
+        [Header("Bunny-hop / air")]
+        [Tooltip("Max speed air input can add per tick, m/s — the classic strafe cap.")]
+        [SerializeField] private float airSpeedCap = 1.1f;
+        [Tooltip("Below this speed, friction uses this floor so slow creep still stops.")]
+        [SerializeField] private float stopSpeed = 1.6f;
+        [Tooltip("Hold jump to hop the instant you land (keeps bhop speed).")]
+        [SerializeField] private bool autoHop = true;
+
         public float bobFrequency = 1.9f;
         public float bobAmplitude = 0.04f;
         [Tooltip("Camera dip per m/s of landing impact.")]
@@ -30,10 +42,13 @@ namespace ClutchFPS.Player
 
         private float[] _tuningDefaults;
 
+        // v2: the accel/decel/air slots changed meaning with the Source
+        // movement model, so the keys are versioned — old saved values from
+        // the momentum model must not load into the new fields.
         private static readonly string[] TuningKeys =
         {
-            "mv_walk", "mv_sprint", "mv_jump", "mv_accel", "mv_decel",
-            "mv_air", "mv_bobf", "mv_boba", "mv_land", "mv_fov"
+            "mv_walk", "mv_sprint", "mv_jump", "mv_gaccel_v2", "mv_fric_v2",
+            "mv_airaccel_v2", "mv_bobf", "mv_boba", "mv_land", "mv_fov"
         };
 
         private float[] TuningValues
@@ -195,15 +210,18 @@ namespace ClutchFPS.Player
             }
             // Hitboxes track the pose. The sync variable fires on the server
             // too, so the authoritative raycasts see the crouched shape.
+            // The body capsule deliberately stops at the neck so it doesn't
+            // enclose (and shadow) the head sphere — otherwise a frontal ray
+            // hits the body first and headshots can never register.
             if (bodyHitbox != null)
             {
-                float height = crouched ? 1.2f : 1.8f;
+                float height = crouched ? 1.0f : 1.45f;
                 bodyHitbox.height = height;
                 bodyHitbox.center = new Vector3(0f, height / 2f, 0f);
             }
             if (headHitbox != null)
             {
-                headHitbox.localPosition = new Vector3(0f, crouched ? 1.15f : 1.62f, 0f);
+                headHitbox.localPosition = new Vector3(0f, crouched ? 1.12f : 1.6f, 0f);
             }
         }
 
@@ -276,17 +294,37 @@ namespace ClutchFPS.Player
 
             bool aiming = _aimFov > 0f;
             bool sprinting = keyboard != null && keyboard.leftShiftKey.isPressed && !IsCrouching && !aiming;
-            float speed = sprinting ? sprintSpeed : walkSpeed;
-            if (IsCrouching) speed *= crouchSpeedMultiplier;
-            if (aiming) speed *= _aimMoveMultiplier;
+            float wishSpeed = sprinting ? sprintSpeed : walkSpeed;
+            if (IsCrouching) wishSpeed *= crouchSpeedMultiplier;
+            if (aiming) wishSpeed *= _aimMoveMultiplier;
 
-            // Momentum: ease toward the target velocity instead of snapping,
-            // with reduced control mid-air.
-            Vector3 targetVelocity = moveDirection * speed;
-            float rate = targetVelocity.sqrMagnitude > _horizontalVelocity.sqrMagnitude
-                ? acceleration : deceleration;
-            if (!isGrounded) rate *= airControl;
-            _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, targetVelocity, rate * Time.deltaTime);
+            // Jump is resolved before friction so a hop the instant you land
+            // keeps your speed — the whole point of bunny-hopping. autoHop lets
+            // you just hold Space; otherwise it's a per-press jump.
+            bool wantJump = keyboard != null &&
+                (autoHop ? keyboard.spaceKey.isPressed : keyboard.spaceKey.wasPressedThisFrame);
+            bool jumpedThisFrame = false;
+            if (isGrounded && wantJump)
+            {
+                _verticalVelocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                jumpedThisFrame = true;
+            }
+
+            // Source movement: friction + ground-accelerate on the ground,
+            // capped air-accelerate in the air. wishDir is the input direction.
+            Vector3 wishDir = moveDirection; // already clamped to length <= 1
+            if (isGrounded && !jumpedThisFrame)
+            {
+                ApplyFriction(Time.deltaTime);
+                Accelerate(wishDir, wishSpeed, acceleration, Time.deltaTime);
+            }
+            else
+            {
+                // In the air the wish speed is clamped hard; the leftover of the
+                // acceleration only lands when you aim it across your velocity,
+                // which is exactly what air-strafing exploits.
+                AirAccelerate(wishDir, wishSpeed, airControl, Time.deltaTime);
+            }
             float planarSpeed = _horizontalVelocity.magnitude;
 
             // Headbob while moving on the ground.
@@ -330,16 +368,56 @@ namespace ClutchFPS.Player
                 : (byte)1;
             if (_moveStateSync.Value != moveState) _moveStateSync.Value = moveState;
 
-            if (isGrounded && keyboard != null && keyboard.spaceKey.wasPressedThisFrame)
-            {
-                _verticalVelocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            }
-
             _verticalVelocity.y += gravity * Time.deltaTime;
 
             Vector3 motion = _horizontalVelocity + Vector3.up * _verticalVelocity.y;
             _controller.Move(motion * Time.deltaTime);
             _wasGrounded = isGrounded;
+        }
+
+        // ---- Source-style movement primitives (operate on _horizontalVelocity) ----
+
+        /// Ground friction. Scrubs speed each tick, with a floor (stopSpeed) so
+        /// slow movement still comes to a full, crisp stop — this is what makes
+        /// counter-strafing feel instant.
+        private void ApplyFriction(float dt)
+        {
+            float speed = _horizontalVelocity.magnitude;
+            if (speed < 0.01f)
+            {
+                _horizontalVelocity = Vector3.zero;
+                return;
+            }
+            float control = Mathf.Max(speed, stopSpeed);
+            float drop = control * deceleration * dt;
+            float newSpeed = Mathf.Max(0f, speed - drop);
+            _horizontalVelocity *= newSpeed / speed;
+        }
+
+        /// Accelerate toward wishDir up to wishSpeed. Because it only adds the
+        /// shortfall along wishDir, top speed is capped but direction changes
+        /// are quick.
+        private void Accelerate(Vector3 wishDir, float wishSpeed, float accel, float dt)
+        {
+            float current = Vector3.Dot(_horizontalVelocity, wishDir);
+            float add = wishSpeed - current;
+            if (add <= 0f) return;
+            float accelSpeed = Mathf.Min(accel * wishSpeed * dt, add);
+            _horizontalVelocity += wishDir * accelSpeed;
+        }
+
+        /// Air acceleration with a hard wish-speed cap. The cap means holding a
+        /// direction barely adds speed head-on, but steering it sideways across
+        /// your momentum keeps adding — the mechanic behind air-strafing and
+        /// carrying bunny-hop speed.
+        private void AirAccelerate(Vector3 wishDir, float wishSpeed, float accel, float dt)
+        {
+            float cappedWish = Mathf.Min(wishSpeed, airSpeedCap);
+            float current = Vector3.Dot(_horizontalVelocity, wishDir);
+            float add = cappedWish - current;
+            if (add <= 0f) return;
+            float accelSpeed = Mathf.Min(accel * wishSpeed * dt, add);
+            _horizontalVelocity += wishDir * accelSpeed;
         }
     }
 }

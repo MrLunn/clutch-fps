@@ -391,8 +391,17 @@ namespace ClutchFPS.Weapons
             if (IsOwner && hitType == 2)
             {
                 HitFeedback.RegisterHit(headshot, killed);
-                FeedbackAudio.PlayHit(muzzle, headshot);
-                if (killed) FeedbackAudio.PlayKill(muzzle);
+                if (killed && headshot)
+                {
+                    // Skip the plain hit tick; the headshot-kill sound is the
+                    // whole reward and shouldn't fight another cue over it.
+                    FeedbackAudio.PlayHeadshotKill(muzzle);
+                }
+                else
+                {
+                    FeedbackAudio.PlayHit(muzzle, headshot);
+                    if (killed) FeedbackAudio.PlayKill(muzzle);
+                }
             }
 
             _kick = 1f;

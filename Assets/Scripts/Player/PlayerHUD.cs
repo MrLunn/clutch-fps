@@ -731,10 +731,10 @@ namespace ClutchFPS.Player
             _movement.jumpHeight = TuningSlider("Jump height", _movement.jumpHeight, 0.4f, 3f);
 
             GUILayout.Space(6);
-            GUILayout.Label("— Weight —");
-            _movement.acceleration = TuningSlider("Acceleration", _movement.acceleration, 5f, 100f);
-            _movement.deceleration = TuningSlider("Deceleration", _movement.deceleration, 5f, 100f);
-            _movement.airControl = TuningSlider("Air control", _movement.airControl, 0f, 1f);
+            GUILayout.Label("— Source movement —");
+            _movement.acceleration = TuningSlider("Ground accel", _movement.acceleration, 4f, 24f);
+            _movement.deceleration = TuningSlider("Friction", _movement.deceleration, 2f, 12f);
+            _movement.airControl = TuningSlider("Air accel", _movement.airControl, 4f, 24f);
 
             GUILayout.Space(6);
             GUILayout.Label("— Camera feel —");
