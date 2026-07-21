@@ -22,6 +22,9 @@ namespace ClutchFPS.Environment
         [Tooltip("Total vision cone. Outside it the enemy is blind, so flanking " +
                  "and breaking contact actually work.")]
         [SerializeField] private float fieldOfViewDegrees = 110f;
+        [Tooltip("Within this range the enemy notices you even outside its cone " +
+                 "(footsteps/presence). Line of sight is still required.")]
+        [SerializeField] private float proximityAwareness = 4.5f;
         [Tooltip("How long an enemy keeps hunting after losing sight, before " +
                  "giving up and returning to patrol.")]
         [SerializeField] private float memoryDuration = 4f;
@@ -60,6 +63,7 @@ namespace ClutchFPS.Environment
         private float _targetAcquiredTime;
         private float _lastSeenTime;
         private Vector3 _lastKnownPosition;
+        private float _stuckTimer;
         private int _shotsInBurst;
         private bool _dead;
 
@@ -90,7 +94,22 @@ namespace ClutchFPS.Environment
 
         private void Update()
         {
-            if (_dead || !_agent.isOnNavMesh) return;
+            if (_dead) return;
+
+            // Spawned inside a crate/container? Then we're off the NavMesh and
+            // can never move. Snap to the nearest walkable point once the mesh
+            // is baked, retrying each frame until it takes.
+            if (!_agent.isOnNavMesh)
+            {
+                if (NavMesh.SamplePosition(transform.position, out var navHit, 8f, NavMesh.AllAreas))
+                {
+                    _agent.Warp(navHit.position);
+                    _home = navHit.position;
+                }
+                return;
+            }
+
+            RecoverIfStuck();
 
             if (Time.time >= _nextTargetScan)
             {
@@ -182,10 +201,15 @@ namespace ClutchFPS.Environment
             Vector3 direction = chest - eye;
             if (direction.magnitude > sightRange) return false;
 
+            // Close-quarters awareness: someone right next to you gets noticed
+            // regardless of facing (footsteps, presence). The line-of-sight
+            // check below still applies, so they can't sense through a wall.
+            bool pointBlank = direction.magnitude <= proximityAwareness;
+
             // Vision cone, measured flat so looking up or down doesn't matter.
             Vector3 flat = direction;
             flat.y = 0f;
-            if (flat.sqrMagnitude > 0.01f &&
+            if (!pointBlank && flat.sqrMagnitude > 0.01f &&
                 Vector3.Angle(transform.forward, flat) > fieldOfViewDegrees * 0.5f)
             {
                 return false;
@@ -250,6 +274,31 @@ namespace ClutchFPS.Environment
             line.endWidth = 0.005f;
             if (tracerMaterial != null) line.material = tracerMaterial;
             Destroy(tracer, 0.07f);
+        }
+
+        /// If the agent wants to move but hasn't for a couple of seconds, it's
+        /// wedged on geometry — warp it to a clear spot near home to break out.
+        /// Standing still to shoot doesn't count.
+        private void RecoverIfStuck()
+        {
+            bool wantsToMove = _agent.hasPath && !_agent.pathPending
+                && _agent.remainingDistance > _agent.stoppingDistance + 0.5f;
+            if (wantsToMove && _agent.velocity.sqrMagnitude < 0.02f)
+            {
+                _stuckTimer += Time.deltaTime;
+                if (_stuckTimer > 2f)
+                {
+                    _stuckTimer = 0f;
+                    if (NavMesh.SamplePosition(_home, out var navHit, 6f, NavMesh.AllAreas))
+                    {
+                        _agent.Warp(navHit.position);
+                    }
+                }
+            }
+            else
+            {
+                _stuckTimer = 0f;
+            }
         }
 
         private void Patrol()

@@ -502,9 +502,13 @@ namespace ClutchFPS.Player
             Color green = Core.UITheme.Success;
             Vector2 centre = new(Screen.width / 2f, Screen.height / 2f);
             const float margin = 64f;
+            const float revealRange = 15f; // pads only announce themselves up close
 
             foreach (var pos in _extractPositions)
             {
+                float dist = Vector3.Distance(transform.position, pos);
+                if (dist > revealRange) continue;
+
                 Vector3 sp = _viewCamera.WorldToScreenPoint(pos + Vector3.up * 1.4f);
                 bool behind = sp.z <= 0f;
                 Vector2 g = new(sp.x, Screen.height - sp.y);
@@ -529,7 +533,6 @@ namespace ClutchFPS.Player
                     at = centre + dir * scale;
                 }
 
-                float dist = Vector3.Distance(transform.position, pos);
                 GUI.color = green;
                 GUI.DrawTexture(new Rect(at.x - 4f, at.y - 4f, 8f, 8f), Pixel);
                 GUI.color = Color.white;

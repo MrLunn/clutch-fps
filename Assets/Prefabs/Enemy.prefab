@@ -116,6 +116,7 @@ MonoBehaviour:
   attackRange: 13
   eyeHeight: 1.5
   fieldOfViewDegrees: 110
+  proximityAwareness: 4.5
   memoryDuration: 4
   damage: 12
   fireCooldown: 1.2
