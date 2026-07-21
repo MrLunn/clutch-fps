@@ -17,18 +17,20 @@ anyway* — normal for indie playtests.)
 The CI build has to activate a free **Unity Personal** license, which needs a
 license file and your Unity credentials stored as GitHub secrets. Do this once:
 
-1. **Push these workflows** to GitHub (already done if you see them under the
-   repo's *Actions* tab).
+1. **Get the activation file (`.alf`)** locally — GameCI's old activation action
+   is deprecated, so generate it from your installed editor:
+   ```
+   "C:\Program Files\Unity\Hub\Editor\6000.3.20f1\Editor\Unity.exe" ^
+     -quit -batchmode -nographics -logFile - -createManualActivationFile
+   ```
+   It writes `Unity_v6000.3.20f1.alf` to the current folder. (Already generated
+   once and placed on the Desktop.)
 
-2. **Get the activation file:** repo → **Actions** → *Acquire Unity Activation
-   File* → **Run workflow**. When it finishes, open the run and download the
-   **Manual Activation File** artifact (a `.alf`).
-
-3. **Convert it to a license:** go to <https://license.unity3d.com/manual>,
+2. **Convert it to a license:** go to <https://license.unity3d.com/manual>,
    upload the `.alf`, choose **Unity Personal / not using professionally**, and
    download the resulting **`.ulf`** file.
 
-4. **Add three repo secrets:** repo → **Settings** → *Secrets and variables* →
+3. **Add three repo secrets:** repo → **Settings** → *Secrets and variables* →
    **Actions** → *New repository secret*:
    - `UNITY_LICENSE` — paste the **entire contents** of the `.ulf` file
    - `UNITY_EMAIL` — your Unity account email
