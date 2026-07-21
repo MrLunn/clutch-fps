@@ -107,11 +107,9 @@ namespace ClutchFPS.Player
                 return;
             }
 
-            // Aiming swaps the full crosshair for a tight reticle rather than
-            // removing it — the view models carry no sights of their own, so
-            // hiding it outright left you aiming at nothing.
-            if (weaponController != null && weaponController.IsAiming) DrawAimReticle();
-            else DrawCrosshair();
+            // Same crosshair hip-fire or ADS — the view models carry no sights
+            // of their own, so keep the familiar reticle in both states.
+            DrawCrosshair();
             DrawHitmarker();
             DrawStatus();
             DrawRadar();
@@ -270,40 +268,6 @@ namespace ClutchFPS.Player
                 sb.Append(ch);
             }
             return sb.ToString().ToUpperInvariant();
-        }
-
-        /// Aimed reticle: a centre dot inside a thin ring, with four short
-        /// ticks. Deliberately smaller and quieter than the hipfire crosshair
-        /// so ADS still reads as the precise state.
-        private void DrawAimReticle()
-        {
-            float cx = Screen.width / 2f;
-            float cy = Screen.height / 2f;
-            Color previous = GUI.color;
-            Color colour = CrosshairSettings.Color;
-
-            GUI.color = colour;
-            GUI.DrawTexture(new Rect(cx - 1.5f, cy - 1.5f, 3f, 3f), Pixel);
-
-            // Ring, dimmed so the dot stays the thing your eye lands on.
-            GUI.color = new Color(colour.r, colour.g, colour.b, colour.a * 0.55f);
-            const float radius = 9f;
-            const int steps = 28;
-            for (int i = 0; i < steps; i++)
-            {
-                float angle = i * Mathf.PI * 2f / steps;
-                GUI.DrawTexture(new Rect(
-                    cx + Mathf.Cos(angle) * radius - 0.5f,
-                    cy + Mathf.Sin(angle) * radius - 0.5f, 1f, 1f), Pixel);
-            }
-
-            // Ticks at the compass points, outside the ring.
-            GUI.DrawTexture(new Rect(cx - 0.5f, cy - radius - 6f, 1f, 4f), Pixel);
-            GUI.DrawTexture(new Rect(cx - 0.5f, cy + radius + 2f, 1f, 4f), Pixel);
-            GUI.DrawTexture(new Rect(cx - radius - 6f, cy - 0.5f, 4f, 1f), Pixel);
-            GUI.DrawTexture(new Rect(cx + radius + 2f, cy - 0.5f, 4f, 1f), Pixel);
-
-            GUI.color = previous;
         }
 
         private void DrawCrosshair()
@@ -1073,13 +1037,20 @@ namespace ClutchFPS.Player
                 }
             }
 
-            // Pickup prompt, lower-center, when standing at an interactable.
+            // Pickup prompt, lower-center: scene loot, or a dropped weapon.
             var nearby = interactor != null ? interactor.Nearby : null;
+            var nearbyDrop = interactor != null ? interactor.NearbyDrop : null;
             if (nearby != null)
             {
                 _promptStyle.normal.textColor = Core.RarityColors.Get(nearby.Rarity);
                 GUI.Label(new Rect(Screen.width / 2f - 200, Screen.height * 0.62f, 400, 30),
                     $"[E]  Pick up {nearby.DisplayName}", _promptStyle);
+            }
+            else if (nearbyDrop != null)
+            {
+                _promptStyle.normal.textColor = Core.RarityColors.Get(nearbyDrop.Rarity);
+                GUI.Label(new Rect(Screen.width / 2f - 200, Screen.height * 0.62f, 400, 30),
+                    $"[E]  Swap to {nearbyDrop.DisplayName}", _promptStyle);
             }
         }
 

@@ -84,11 +84,12 @@ namespace ClutchFPS.Environment
             ApplyTint();
         }
 
-        // Auto-collect on walk-over once armed. Server-authoritative like every
-        // other pickup; a full inventory just leaves the drop on the ground.
+        // Items auto-collect on walk-over; weapons don't, so you never lose the
+        // gun in your hands just by walking through loot — they're picked up
+        // deliberately with E (see PlayerInteractor).
         private void OnTriggerEnter(Collider other)
         {
-            if (!IsServer || _taken || Time.time < _armedTime) return;
+            if (!IsServer || _taken || Time.time < _armedTime || IsWeapon) return;
             if (other.TryGetComponent<PlayerWeaponController>(out var player))
             {
                 ServerTryPickup(player);

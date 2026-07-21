@@ -11,15 +11,24 @@ namespace ClutchFPS.Player
     public class PlayerInteractor : NetworkBehaviour
     {
         private LootPickup _nearby;
+        private DroppedLoot _nearbyDrop;
 
         public LootPickup Nearby =>
             _nearby != null && _nearby.IsAvailable ? _nearby : null;
+
+        /// A dropped weapon within reach, waiting on an E-press. Items aren't
+        /// listed here — they auto-collect on walk-over.
+        public DroppedLoot NearbyDrop => _nearbyDrop;
 
         private void OnTriggerEnter(Collider other)
         {
             if (other.TryGetComponent<LootPickup>(out var pickup) && pickup.RequiresInteract)
             {
                 _nearby = pickup;
+            }
+            else if (other.TryGetComponent<DroppedLoot>(out var drop) && drop.IsWeapon)
+            {
+                _nearbyDrop = drop;
             }
         }
 
@@ -29,21 +38,27 @@ namespace ClutchFPS.Player
             {
                 _nearby = null;
             }
+            else if (other.TryGetComponent<DroppedLoot>(out var drop) && drop == _nearbyDrop)
+            {
+                _nearbyDrop = null;
+            }
         }
 
         private PlayerRespawn _respawn;
 
         private void Update()
         {
-            if (!IsOwner || Nearby == null) return;
+            if (!IsOwner) return;
             if (PlayerHUD.LocalMenuOpen) return;
             if (_respawn == null) _respawn = GetComponent<PlayerRespawn>();
             if (_respawn != null && _respawn.IsDead) return;
+
             var keyboard = Keyboard.current;
-            if (keyboard != null && keyboard.eKey.wasPressedThisFrame)
-            {
-                InteractServerRpc(_nearby.NetworkObject);
-            }
+            if (keyboard == null || !keyboard.eKey.wasPressedThisFrame) return;
+
+            // Scene loot takes priority; otherwise a dropped weapon at your feet.
+            if (Nearby != null) InteractServerRpc(_nearby.NetworkObject);
+            else if (_nearbyDrop != null) InteractDropServerRpc(_nearbyDrop.NetworkObject);
         }
 
         [ServerRpc]
@@ -53,6 +68,15 @@ namespace ClutchFPS.Player
             if (!pickupObject.TryGetComponent<LootPickup>(out var pickup)) return;
             if (!TryGetComponent<PlayerWeaponController>(out var weapons)) return;
             pickup.ServerTryPickup(weapons);
+        }
+
+        [ServerRpc]
+        private void InteractDropServerRpc(NetworkObjectReference dropRef)
+        {
+            if (!dropRef.TryGet(out var dropObject)) return;
+            if (!dropObject.TryGetComponent<DroppedLoot>(out var drop)) return;
+            if (!TryGetComponent<PlayerWeaponController>(out var weapons)) return;
+            drop.ServerTryPickup(weapons);
         }
     }
 }
