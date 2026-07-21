@@ -49,12 +49,22 @@ namespace ClutchFPS.Environment
             _glow.color = Core.RarityColors.Get(rarity);
         }
 
+        private float _spin;
+        private Vector3 _visualBase;
+        private bool _baseCaptured;
+
         private void Update()
         {
-            if (_available.Value && visual != null)
-            {
-                visual.transform.Rotate(Vector3.up, spinDegreesPerSecond * Time.deltaTime);
-            }
+            if (!_available.Value || visual == null) return;
+
+            if (!_baseCaptured) { _visualBase = visual.transform.localPosition; _baseCaptured = true; }
+
+            // Tilted spin + bob + breathing glow so pickups read as loot rather
+            // than a cube sitting on the floor.
+            _spin += spinDegreesPerSecond * Time.deltaTime;
+            visual.transform.localRotation = Quaternion.AngleAxis(_spin, Vector3.up) * Quaternion.Euler(20f, 0f, 0f);
+            visual.transform.localPosition = _visualBase + Vector3.up * (0.12f + 0.08f * Mathf.Sin(Time.time * 2.2f));
+            if (_glow != null) _glow.intensity = 1.6f + 0.9f * (0.5f + 0.5f * Mathf.Sin(Time.time * 2.6f));
         }
 
         private void ApplyAvailability(bool isAvailable)

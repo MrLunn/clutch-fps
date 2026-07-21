@@ -72,9 +72,13 @@ namespace ClutchFPS.Environment
             _weaponVariant.Value = variantIndex;
         }
 
+        private float _spin;
+        private Vector3 _visualBase;
+
         public override void OnNetworkSpawn()
         {
             if (IsServer) _armedTime = Time.time + 1f;
+            _visualBase = visual != null ? visual.localPosition : Vector3.zero;
             // Re-tint whenever the contents sync in; the values arrive as
             // separate deltas, so keying off any of them and re-reading all is
             // simplest and race-free.
@@ -130,10 +134,14 @@ namespace ClutchFPS.Environment
 
         private void Update()
         {
-            if (visual != null)
-            {
-                visual.Rotate(Vector3.up, spinDegreesPerSecond * Time.deltaTime, Space.World);
-            }
+            if (visual == null) return;
+
+            // Tilted spin so it tumbles like a token, not a flat box; a gentle
+            // bob floats it off the ground; the glow breathes. Reads as loot.
+            _spin += spinDegreesPerSecond * Time.deltaTime;
+            visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.up) * Quaternion.Euler(22f, 0f, 0f);
+            visual.localPosition = _visualBase + Vector3.up * (0.18f + 0.1f * Mathf.Sin(Time.time * 2.4f));
+            if (_glow != null) _glow.intensity = 2.0f + 1.1f * (0.5f + 0.5f * Mathf.Sin(Time.time * 3f));
         }
 
         /// Server-side. Returns false when the taker has no room for it, so the
