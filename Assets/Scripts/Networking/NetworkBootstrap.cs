@@ -32,6 +32,7 @@ namespace ClutchFPS.Networking
             var networkManager = NetworkManager.Singleton;
             if (networkManager == null) return;
             GetTransport(networkManager)?.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
+            EnsureRuntimePrefabs(networkManager);
             networkManager.StartHost();
         }
 
@@ -74,6 +75,19 @@ namespace ClutchFPS.Networking
         private static UnityTransport GetTransport(NetworkManager networkManager)
         {
             return networkManager.NetworkConfig.NetworkTransport as UnityTransport;
+        }
+
+        // Prefabs spawned at runtime (dropped loot) must be registered before
+        // connecting, identically on host and clients so the spawn hashes
+        // match. Done here because both peers pass through this screen. Wrapped
+        // because AddNetworkPrefab throws if the prefab is already registered
+        // (e.g. hosting a second time in the same session).
+        private static void EnsureRuntimePrefabs(NetworkManager networkManager)
+        {
+            var drop = Environment.LootSpawner.Prefab;
+            if (drop == null) return;
+            try { networkManager.AddNetworkPrefab(drop); }
+            catch (System.Exception) { /* already registered */ }
         }
 
         // Explicitly release the transport socket when play mode ends or the
@@ -147,6 +161,7 @@ namespace ClutchFPS.Networking
                 }
                 else
                 {
+                    EnsureRuntimePrefabs(networkManager);
                     networkManager.StartHost();
                 }
             }
@@ -158,6 +173,7 @@ namespace ClutchFPS.Networking
             {
                 Player.PlayerIdentity.LocalName = _name;
                 GetTransport(networkManager)?.SetConnectionData(_address.Trim(), 7777);
+                EnsureRuntimePrefabs(networkManager);
                 networkManager.StartClient();
             }
             y += 42f;

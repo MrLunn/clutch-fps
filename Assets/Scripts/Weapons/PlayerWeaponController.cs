@@ -15,6 +15,7 @@ namespace ClutchFPS.Weapons
         private int _activeIndex;
         private Player.PlayerRespawn _respawn;
         private Player.FirstPersonMovement _movement;
+        private Player.PlayerInventory _inventory;
 
         /// Scales look sensitivity while aiming (read by MouseLook).
         public static float LookSensitivityScale = 1f;
@@ -151,6 +152,11 @@ namespace ClutchFPS.Weapons
             {
                 weapon.CycleFireMode();
             }
+            if (keyboard != null && keyboard.digit4Key.wasPressedThisFrame)
+            {
+                _inventory ??= GetComponent<Player.PlayerInventory>();
+                _inventory?.UseMedkit();
+            }
         }
 
         private void HandleSwitchInput()
@@ -161,6 +167,39 @@ namespace ClutchFPS.Weapons
             if (keyboard.digit1Key.wasPressedThisFrame && weapons.Length > 0 && OwnsSlot(0)) SetActiveWeapon(0);
             if (keyboard.digit2Key.wasPressedThisFrame && weapons.Length > 1 && OwnsSlot(1)) SetActiveWeapon(1);
             if (keyboard.digit3Key.wasPressedThisFrame && weapons.Length > 2 && OwnsSlot(2)) SetActiveWeapon(2);
+        }
+
+        /// Owner-side: equip an owned slot from the inventory screen.
+        public void OwnerEquip(int slot)
+        {
+            if (IsOwner && OwnsSlot(slot)) SetActiveWeapon(slot);
+        }
+
+        /// Owner-side: drop a slot's weapon on the ground. Switches off it first
+        /// if it was active, then asks the server to spawn the loot and revoke
+        /// ownership. Slot 0 (the starter rifle) can't be dropped.
+        public void OwnerDropWeapon(int slot)
+        {
+            if (!IsOwner || slot <= 0 || !OwnsSlot(slot)) return;
+            if (_activeIndex == slot) SetActiveWeapon(0);
+            DropWeaponServerRpc(slot);
+        }
+
+        [ServerRpc]
+        private void DropWeaponServerRpc(int slot)
+        {
+            if (slot <= 0 || slot >= weapons.Length || !OwnsSlot(slot)) return;
+            var weapon = weapons[slot];
+            int variant = weapon.VariantIndex;
+            if (variant < 0 && WeaponDatabase.Instance != null)
+            {
+                variant = WeaponDatabase.Instance.IndexOf(weapon.Data);
+            }
+            Environment.LootSpawner.SpawnWeapon(
+                Environment.LootSpawner.DropPoint(transform), slot, variant);
+
+            _ownedSlots.Value &= ~(1 << slot);
+            weapon.ServerSetWeaponData(-1); // reset to serialized default for a clean re-grant
         }
 
         private void SetActiveWeapon(int index)

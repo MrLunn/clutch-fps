@@ -120,7 +120,25 @@ namespace ClutchFPS.Player
         [ServerRpc]
         public void UseItemServerRpc(int index)
         {
-            if (index < 0 || index >= _slots.Count) return;
+            ServerUseAt(index);
+        }
+
+        /// Use the first slot holding a given item type. Lets the 4-key use a
+        /// medkit without the client tracking which slot it landed in.
+        [ServerRpc]
+        public void UseItemTypeServerRpc(int itemId)
+        {
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (_slots[i].ItemId == itemId && ServerUseAt(i)) return;
+            }
+        }
+
+        /// Server-side. Applies an item's effect and consumes one; returns
+        /// whether anything was actually used.
+        private bool ServerUseAt(int index)
+        {
+            if (!IsServer || index < 0 || index >= _slots.Count) return false;
             var slot = _slots[index];
             bool consumed = false;
 
@@ -136,10 +154,28 @@ namespace ClutchFPS.Player
                 // Ammo items are not "used" — reloading consumes them.
             }
 
-            if (!consumed) return;
+            if (!consumed) return false;
             slot.Count--;
             if (slot.Count <= 0) _slots.RemoveAt(index);
             else _slots[index] = slot;
+            return true;
+        }
+
+        /// Owner convenience: use a held medkit via the 4-key.
+        public void UseMedkit()
+        {
+            if (IsOwner) UseItemTypeServerRpc((int)ItemType.Medkit);
+        }
+
+        /// Drop an entire item slot on the ground as collectable loot.
+        [ServerRpc]
+        public void DropItemServerRpc(int index)
+        {
+            if (index < 0 || index >= _slots.Count) return;
+            var slot = _slots[index];
+            Environment.LootSpawner.SpawnItem(
+                Environment.LootSpawner.DropPoint(transform), slot.ItemId, slot.Count);
+            _slots.RemoveAt(index);
         }
     }
 }

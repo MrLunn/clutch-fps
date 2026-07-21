@@ -337,110 +337,145 @@ namespace ClutchFPS.Player
         private void DrawInventory()
         {
             if (inventory == null) return;
-            EnsureStyles();
 
-            Rect panel = new(Screen.width / 2f - 340, Screen.height / 2f - 160, 680, 320);
-            GUI.Box(panel, "CHARACTER  (Tab to close)");
+            Core.UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.6f));
+            const float pw = 800f, ph = 470f;
+            Rect panel = new((Screen.width - pw) / 2f, (Screen.height - ph) / 2f, pw, ph);
+            Core.UITheme.Panel3D(panel);
 
-            // Left column: the character.
-            GUILayout.BeginArea(new Rect(panel.x + 15, panel.y + 32, 190, panel.height - 45));
-            _smallStyle.alignment = TextAnchor.MiddleLeft;
-            GUILayout.Label(respawn != null ? respawn.ResolvedName : "Player",
-                new GUIStyle { fontSize = 20, fontStyle = FontStyle.Bold,
-                    normal = { textColor = Color.white } });
-            GUILayout.Space(8);
+            GUI.Label(new Rect(panel.x + 24f, panel.y + 16f, 400f, 24f), "INVENTORY",
+                Core.UITheme.Style(18, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextBright));
+            GUI.Label(new Rect(panel.xMax - 84f, panel.y + 16f, 60f, 24f), "TAB",
+                Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleRight, Core.UITheme.TextDim));
+            Core.UITheme.Fill(new Rect(panel.x + 24f, panel.y + 46f, pw - 48f, 1f), Core.UITheme.Line);
+
+            float top = panel.y + 60f;
+            float lx = panel.x + 24f, lw = 210f;
+            float mx = lx + lw + 22f, mw = 250f;
+            float rx = mx + mw + 22f, rw = panel.xMax - 24f - rx;
+
+            // ---- Left: operator card ----
+            Core.UITheme.Header(new Rect(lx, top, lw, 18f), "Operator");
+            float ly = top + 28f;
+            GUI.Label(new Rect(lx, ly, lw, 26f), respawn != null ? respawn.ResolvedName : "Player",
+                Core.UITheme.Style(20, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextBright));
+            ly += 36f;
             if (health != null)
             {
-                GUILayout.Label($"Health  {Mathf.CeilToInt(health.CurrentHealth)} / {Mathf.CeilToInt(health.MaxHealth)}");
-                Rect barBack = GUILayoutUtility.GetRect(170, 12);
-                var prevColor = GUI.color;
-                GUI.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
-                GUI.DrawTexture(barBack, Pixel);
-                GUI.color = new Color(0.85f, 0.25f, 0.2f);
-                GUI.DrawTexture(new Rect(barBack.x, barBack.y,
-                    barBack.width * (health.CurrentHealth / health.MaxHealth), barBack.height), Pixel);
-                GUI.color = prevColor;
+                float frac = health.MaxHealth > 0f ? health.CurrentHealth / health.MaxHealth : 0f;
+                GUI.Label(new Rect(lx, ly, lw, 16f),
+                    $"HEALTH  {Mathf.CeilToInt(health.CurrentHealth)} / {Mathf.CeilToInt(health.MaxHealth)}",
+                    Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+                ly += 18f;
+                Core.UITheme.Bar(new Rect(lx, ly, lw, 8f), frac,
+                    frac > 0.5f ? Core.UITheme.Success : frac > 0.25f ? Core.UITheme.Accent : Core.UITheme.Danger);
+                ly += 22f;
             }
-            GUILayout.Space(8);
             if (respawn != null)
             {
-                GUILayout.Label($"Kills  {respawn.Kills.Value}    Deaths  {respawn.Deaths.Value}");
+                GUI.Label(new Rect(lx, ly, lw, 18f), $"KILLS  {respawn.Kills.Value}      DEATHS  {respawn.Deaths.Value}",
+                    Core.UITheme.Style(12, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+                ly += 22f;
             }
             if (practice != null)
             {
-                GUILayout.Label($"Best practice run  {practice.BestScore}");
+                GUI.Label(new Rect(lx, ly, lw, 18f), $"BEST RUN  {practice.BestScore}",
+                    Core.UITheme.Style(12, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
             }
-            GUILayout.EndArea();
 
-            // Middle column: loadout with reserve ammo per weapon.
-            GUILayout.BeginArea(new Rect(panel.x + 220, panel.y + 32, 210, panel.height - 45));
-            GUILayout.Label("— Loadout —");
+            // ---- Middle: loadout with equip / drop ----
+            Core.UITheme.Header(new Rect(mx, top, mw, 18f), "Loadout");
+            float my = top + 28f;
             if (weaponController != null)
             {
                 for (int i = 0; i < weaponController.SlotCount; i++)
                 {
-                    var slotWeapon = weaponController.WeaponAt(i);
-                    if (slotWeapon == null) continue;
-                    if (!weaponController.OwnsSlot(i))
+                    var sw = weaponController.WeaponAt(i);
+                    if (sw == null) continue;
+
+                    bool owned = weaponController.OwnsSlot(i);
+                    bool active = owned && i == weaponController.ActiveIndex;
+                    Rect row = new(mx, my, mw, 48f);
+                    Core.UITheme.Fill(row, active ? Core.UITheme.AccentDim
+                        : new Color(0.09f, 0.10f, 0.11f, owned ? 0.9f : 0.4f));
+                    GUI.Label(new Rect(row.x + 7f, row.y + 5f, 16f, 14f), $"{i + 1}",
+                        Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleLeft,
+                            active ? Color.black : Core.UITheme.TextDim));
+
+                    if (!owned)
                     {
-                        GUILayout.Label($"[{i + 1}] —");
+                        GUI.Label(new Rect(row.x + 28f, row.y, mw - 34f, 48f), "Empty slot",
+                            Core.UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+                        my += 54f;
                         continue;
                     }
-                    var ammoInfo = Core.Items.Get(slotWeapon.Data.ammoItemId);
-                    GUILayout.BeginHorizontal();
-                    Rect wIcon = GUILayoutUtility.GetRect(40, 30, GUILayout.Width(40));
-                    Core.IconLibrary.Draw(wIcon, Core.IconLibrary.Weapon(slotWeapon.VariantIndex >= 0
-                        ? slotWeapon.VariantIndex : i), Core.RarityColors.Get(slotWeapon.Data.rarity));
-                    GUILayout.Label(
-                        $" [{i + 1}] {slotWeapon.Data.weaponName}\n {slotWeapon.CurrentAmmo}/{slotWeapon.Data.magazineSize}  ·  {slotWeapon.ReserveAmmo} {ammoInfo.Name}",
-                        _smallStyle, GUILayout.Height(30));
-                    GUILayout.EndHorizontal();
+
+                    var rarity = Core.RarityColors.Get(sw.Data.rarity);
+                    Core.IconLibrary.Draw(new Rect(row.x + 26f, row.y + 8f, 32f, 32f),
+                        Core.IconLibrary.Weapon(sw.VariantIndex >= 0 ? sw.VariantIndex : i), rarity);
+                    GUI.Label(new Rect(row.x + 64f, row.y + 5f, mw - 70f, 20f), sw.Data.weaponName,
+                        Core.UITheme.Style(14, FontStyle.Bold, TextAnchor.MiddleLeft, active ? Color.black : rarity));
+                    GUI.Label(new Rect(row.x + 64f, row.y + 25f, mw - 70f, 18f),
+                        $"{sw.CurrentAmmo}/{sw.Data.magazineSize}   ·   {sw.ReserveAmmo} reserve",
+                        Core.UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleLeft,
+                            active ? new Color(0f, 0f, 0f, 0.7f) : Core.UITheme.TextDim));
+
+                    float by = row.yMax + 3f, bw = (mw - 6f) / 2f;
+                    if (active)
+                    {
+                        GUI.Label(new Rect(row.x, by, bw, 22f), "EQUIPPED",
+                            Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.Success));
+                    }
+                    else if (Core.UITheme.Button(new Rect(row.x, by, bw, 22f), "Equip"))
+                    {
+                        weaponController.OwnerEquip(i);
+                    }
+                    // Slot 0 is the starter rifle and can't be dropped.
+                    if (i > 0 && Core.UITheme.Button(new Rect(row.x + bw + 6f, by, bw, 22f), "Drop"))
+                    {
+                        weaponController.OwnerDropWeapon(i);
+                    }
+                    my += 80f;
                 }
             }
-            GUILayout.EndArea();
 
-            // Right column: item slots.
-            GUILayout.BeginArea(new Rect(panel.x + 450, panel.y + 32, 215, panel.height - 45));
-            GUILayout.Label("— Items —");
+            // ---- Right: items with use / drop ----
+            Core.UITheme.Header(new Rect(rx, top, rw, 18f), "Items");
+            float ry = top + 28f;
             if (inventory.SlotCount == 0)
             {
-                GUILayout.Label("Empty. Loot the range with E.");
+                GUI.Label(new Rect(rx, ry, rw, 40f), "Empty.\nLoot with E, or walk over dropped loot.",
+                    Core.UITheme.Style(12, FontStyle.Normal, TextAnchor.UpperLeft, Core.UITheme.TextDim));
             }
-            for (int i = 0; i < inventory.SlotCount; i += 2)
+            for (int i = 0; i < inventory.SlotCount; i++)
             {
-                GUILayout.BeginHorizontal();
-                for (int j = i; j < Mathf.Min(i + 2, inventory.SlotCount); j++)
+                var slot = inventory.GetSlot(i);
+                var info = Core.Items.Get(slot.ItemId);
+                Rect row = new(rx, ry, rw, 40f);
+                Core.UITheme.Fill(row, new Color(0.09f, 0.10f, 0.11f, 0.9f));
+                Core.UITheme.Fill(new Rect(row.x, row.y, 3f, row.height), info.Tint);
+                Core.IconLibrary.Draw(new Rect(row.x + 10f, row.y + 6f, 28f, 28f),
+                    Core.IconLibrary.Item(slot.ItemId), info.Tint);
+                GUI.Label(new Rect(row.x + 44f, row.y + 3f, rw - 150f, 20f), info.Name,
+                    Core.UITheme.Style(13, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextBright));
+                GUI.Label(new Rect(row.x + 44f, row.y + 21f, rw - 150f, 16f), $"x{slot.Count}",
+                    Core.UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+
+                const float bw = 46f;
+                if (info.Usable && Core.UITheme.Button(new Rect(row.xMax - bw * 2f - 10f, row.y + 8f, bw, 24f), "Use"))
                 {
-                    var slot = inventory.GetSlot(j);
-                    var info = Core.Items.Get(slot.ItemId);
-                    var prev = GUI.backgroundColor;
-                    GUI.backgroundColor = info.Tint;
-
-                    Rect cell = GUILayoutUtility.GetRect(98, 44, GUILayout.Width(98), GUILayout.Height(44));
-                    bool clicked = false;
-                    if (info.Usable)
-                    {
-                        clicked = GUI.Button(cell, GUIContent.none);
-                    }
-                    else
-                    {
-                        GUI.Box(cell, GUIContent.none);
-                    }
-
-                    // Icon on the left of the cell, name/count on the right.
-                    Core.IconLibrary.Draw(new Rect(cell.x + 4, cell.y + 6, 32, 32),
-                        Core.IconLibrary.Item(slot.ItemId), info.Tint);
-                    GUI.Label(new Rect(cell.x + 40, cell.y + 4, 56, 36), $"{info.Name}\nx{slot.Count}", _smallStyle);
-
-                    if (clicked) inventory.UseItemServerRpc(j);
-                    GUI.backgroundColor = prev;
+                    inventory.UseItemServerRpc(i);
                 }
-                GUILayout.EndHorizontal();
+                if (Core.UITheme.Button(new Rect(row.xMax - bw - 6f, row.y + 8f, bw, 24f), "Drop"))
+                {
+                    inventory.DropItemServerRpc(i);
+                }
+                ry += 46f;
             }
-            GUILayout.FlexibleSpace();
-            GUILayout.Label("Click usable items (medkits) to use.\nAmmo is spent by reloading.", _smallStyle);
-            _smallStyle.alignment = TextAnchor.MiddleRight;
-            GUILayout.EndArea();
+
+            GUI.Label(new Rect(panel.x + 24f, panel.yMax - 26f, pw - 48f, 18f),
+                "4  USE MEDKIT      ·      DROPPED LOOT AUTO-COLLECTS ON WALK-OVER      ·      TAB  CLOSE",
+                Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
         }
 
         private void DrawPractice()
@@ -830,6 +865,24 @@ namespace ClutchFPS.Player
                 GUI.Label(new Rect(block.x + 12f + 56f, block.y + 8f, 80f, 20f), "HP",
                     Core.UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
                 Core.UITheme.Bar(new Rect(block.x + 12f, block.y + 36f, 190f, 6f), fraction, healthColor);
+
+                // Medkit pip beside the vitals: count carried + the use key.
+                if (inventory != null)
+                {
+                    int medkits = inventory.CountOf((int)Core.ItemType.Medkit);
+                    Rect pip = new(block.xMax + 10f, block.y, 92f, 46f);
+                    Core.UITheme.Fill(pip, new Color(0.06f, 0.07f, 0.08f, 0.85f));
+                    Core.UITheme.Fill(new Rect(pip.x, pip.y, 3f, pip.height),
+                        medkits > 0 ? Core.UITheme.Success : Core.UITheme.TextDim);
+                    Core.IconLibrary.Draw(new Rect(pip.x + 10f, pip.y + 10f, 26f, 26f),
+                        Core.IconLibrary.Item((int)Core.ItemType.Medkit),
+                        Core.Items.Get((int)Core.ItemType.Medkit).Tint);
+                    GUI.Label(new Rect(pip.x + 42f, pip.y + 6f, 46f, 22f), "x" + medkits,
+                        Core.UITheme.Style(20, FontStyle.Bold, TextAnchor.MiddleLeft,
+                            medkits > 0 ? Core.UITheme.TextBright : Core.UITheme.TextDim));
+                    GUI.Label(new Rect(pip.x + 42f, pip.y + 27f, 46f, 14f), "[4]",
+                        Core.UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+                }
             }
 
             // BF-style loadout panel, bottom-right: weapon name, big ammo count,
