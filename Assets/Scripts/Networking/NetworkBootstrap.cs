@@ -18,11 +18,16 @@ namespace ClutchFPS.Networking
         private static int _mapIndex;
         private static bool _pendingHost;
 
+        private string _loginUser = "";
+        private string _loginPass = "";
+        private bool _accountNameApplied;
+
         private void Awake()
         {
             _name = Player.PlayerIdentity.LocalName;
             Player.DisplaySettings.ApplySavedIfAny();
             Player.GameSettings.ApplySavedIfAny();
+            AccountService.EnsureInitialized();
         }
 
         private void Start()
@@ -145,6 +150,19 @@ namespace ClutchFPS.Networking
             DrawBackdrop();
             DrawLogo();
 
+            // Gate everything behind an account so the stash/stats can key off it.
+            if (!AccountService.IsSignedIn)
+            {
+                DrawLoginPanel();
+                return;
+            }
+            // Default the operator name to the account name once signed in.
+            if (!_accountNameApplied)
+            {
+                _name = AccountService.DisplayName;
+                _accountNameApplied = true;
+            }
+
             if (StashScreen.Open)
             {
                 StashScreen.Draw(Player.PlayerIdentity.LocalName);
@@ -237,6 +255,79 @@ namespace ClutchFPS.Networking
             var style = UITheme.Style(14, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextBright);
             style.padding = new RectOffset(10, 10, 0, 0);
             return GUI.TextField(rect, value, maxLength, style);
+        }
+
+        private static string DrawPasswordField(Rect rect, string value, int maxLength)
+        {
+            UITheme.Fill(rect, new Color(0.04f, 0.045f, 0.05f, 0.95f));
+            UITheme.Fill(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), UITheme.Line);
+            var style = UITheme.Style(14, FontStyle.Normal, TextAnchor.MiddleLeft, UITheme.TextBright);
+            style.padding = new RectOffset(10, 10, 0, 0);
+            return GUI.PasswordField(rect, value, '•', maxLength, style);
+        }
+
+        /// Account gate shown before the main menu. Sign in, create an account,
+        /// or play as a guest. Async work runs through AccountService; this just
+        /// reads its status flags each frame.
+        private void DrawLoginPanel()
+        {
+            const float width = 380f;
+            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.44f, width, 306f);
+            UITheme.Panel3D(panel);
+
+            float x = panel.x + 22f, w = panel.width - 44f, y = panel.y + 18f;
+            UITheme.Header(new Rect(x, y, w, 18f), "Account");
+            y += 28f;
+
+            if (AccountService.Status == AccountService.State.Initializing)
+            {
+                GUI.Label(new Rect(x, y + 20f, w, 40f), "Connecting to Unity services…",
+                    UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
+                return;
+            }
+
+            _loginUser = DrawField(new Rect(x, y, w, 30f), _loginUser, 20);
+            y += 12f;
+            GUI.Label(new Rect(x, y, w, 16f), "USERNAME",
+                UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
+            y += 26f;
+            _loginPass = DrawPasswordField(new Rect(x, y, w, 30f), _loginPass, 30);
+            y += 12f;
+            GUI.Label(new Rect(x, y, w, 16f), "PASSWORD",
+                UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
+            y += 30f;
+
+            bool busy = AccountService.Busy;
+            float half = (w - 8f) / 2f;
+            if (UITheme.Button(new Rect(x, y, half, 36f), "Sign In", primary: true) && !busy)
+            {
+                AccountService.SignIn(_loginUser.Trim(), _loginPass);
+            }
+            if (UITheme.Button(new Rect(x + half + 8f, y, half, 36f), "Create") && !busy)
+            {
+                AccountService.CreateAccount(_loginUser.Trim(), _loginPass);
+            }
+            y += 44f;
+            if (UITheme.Button(new Rect(x, y, w, 30f), "Play as Guest") && !busy)
+            {
+                AccountService.SignInGuest();
+            }
+            y += 38f;
+
+            if (busy)
+            {
+                GUI.Label(new Rect(x, y, w, 20f), "Working…",
+                    UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.Accent));
+            }
+            else if (AccountService.Status == AccountService.State.Error)
+            {
+                GUI.Label(new Rect(x, y, w, 34f), AccountService.LastError,
+                    UITheme.Style(11, FontStyle.Normal, TextAnchor.UpperCenter, UITheme.Danger));
+            }
+
+            GUI.Label(new Rect(x, panel.yMax - 24f, w, 16f),
+                "New? Password needs 8-30 chars, a number and a symbol.",
+                UITheme.Style(10, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
         }
 
         private void DrawSettingsPanel(Rect anchor)
