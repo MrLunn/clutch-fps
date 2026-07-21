@@ -42,6 +42,12 @@ namespace ClutchFPS.Weapons
         [Tooltip("Spread in degrees at full bloom. First shots have (near) zero spread.")]
         public float spreadDegrees = 1.5f;
 
+        [Tooltip("Base hipfire spread (deg) while standing still. Crouching multiplies this by Crouch Spread Mult for a tighter grouping.")]
+        public float stillSpread = 0.35f;
+
+        [Tooltip("Extra spread (deg) added while walking/running, scaled by speed. This is what stops moving fire from being pinpoint.")]
+        public float movingSpread = 3.2f;
+
         [Tooltip("How much one shot adds to bloom (0-1 scale; 0.25 = full bloom after 4 quick shots).")]
         public float bloomPerShot = 0.22f;
 

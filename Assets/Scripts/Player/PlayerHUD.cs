@@ -822,7 +822,9 @@ namespace ClutchFPS.Player
             var data = weapon.Data;
 
             GUILayout.Label("— Spread —");
-            data.spreadDegrees = TuningSlider("Max spread (deg)", data.spreadDegrees, 0f, 6f);
+            data.stillSpread = TuningSlider("Still spread (deg)", data.stillSpread, 0f, 2f);
+            data.movingSpread = TuningSlider("Moving spread (deg)", data.movingSpread, 0f, 8f);
+            data.spreadDegrees = TuningSlider("Max bloom spread (deg)", data.spreadDegrees, 0f, 6f);
             data.bloomPerShot = TuningSlider("Bloom per shot", data.bloomPerShot, 0f, 1f);
             data.bloomRecoverPerSecond = TuningSlider("Bloom recovery /s", data.bloomRecoverPerSecond, 0.5f, 8f);
             data.crouchSpreadMultiplier = TuningSlider("Crouch spread mult", data.crouchSpreadMultiplier, 0.1f, 1f);

@@ -102,6 +102,9 @@ namespace ClutchFPS.Player
 
         public bool IsCrouching { get; private set; }
 
+        /// Current horizontal speed (m/s), read by the weapon for move-spread.
+        public float PlanarSpeed => _horizontalVelocity.magnitude;
+
         // ADS override from the weapon controller: fov 0 = not aiming.
         private float _aimFov;
         private float _aimMoveMultiplier = 1f;

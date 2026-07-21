@@ -115,6 +115,11 @@ namespace ClutchFPS.Weapons
 
         private bool OwnerIsCrouching => _movement != null && _movement.IsCrouching;
 
+        /// Owner's movement as a fraction of walk speed: ~0 still, ~1 walking,
+        /// >1 sprinting. Sent to the server so spread reflects how you moved.
+        private float OwnerMoveFactor =>
+            _movement != null ? _movement.PlanarSpeed / Mathf.Max(0.1f, _movement.walkSpeed) : 0f;
+
         /// Holstering hides the view model rather than deactivating the
         /// GameObject: Netcode never initializes NetworkBehaviours that spawn
         /// on inactive objects, which silently bricked the pistol.
@@ -181,7 +186,7 @@ namespace ClutchFPS.Weapons
             if (Time.time < _nextFireTime) return;
 
             _nextFireTime = Time.time + 1f / Mathf.Max(Data.fireRate, 0.01f);
-            FireServerRpc(origin, direction.normalized, OwnerIsCrouching, _aiming);
+            FireServerRpc(origin, direction.normalized, OwnerIsCrouching, _aiming, OwnerMoveFactor);
         }
 
         /// Fires a full burst; aim is re-read per shot so the burst tracks the camera.
@@ -199,7 +204,7 @@ namespace ClutchFPS.Weapons
             for (int i = 0; i < Data.burstCount; i++)
             {
                 if (_isReloading.Value || _currentAmmo.Value <= 0) break;
-                FireServerRpc(aim.position, aim.forward, OwnerIsCrouching, _aiming);
+                FireServerRpc(aim.position, aim.forward, OwnerIsCrouching, _aiming, OwnerMoveFactor);
                 yield return new WaitForSeconds(Data.burstShotInterval);
             }
             _bursting = false;
@@ -226,15 +231,31 @@ namespace ClutchFPS.Weapons
         }
 
         [ServerRpc]
-        private void FireServerRpc(Vector3 origin, Vector3 direction, bool crouched, bool aimed, ServerRpcParams rpcParams = default)
+        private void FireServerRpc(Vector3 origin, Vector3 direction, bool crouched, bool aimed, float moveFactor, ServerRpcParams rpcParams = default)
         {
             if (_isReloading.Value || _currentAmmo.Value <= 0) return;
 
             _currentAmmo.Value--;
 
-            float maxSpread = Data.spreadDegrees * (crouched ? Data.crouchSpreadMultiplier : 1f);
-            if (aimed) maxSpread *= Data.adsSpreadMultiplier;
-            Vector3 spreadDirection = ApplySpread(direction, maxSpread * _serverBloom);
+            // Base stance spread — applies to every shot, including the first,
+            // so accuracy depends on how you're standing/moving:
+            //  - moving (walk/run): a real penalty, scaled by speed
+            //  - standing still: a small base spread
+            //  - crouched & still: tighter than standing (the crouch bonus),
+            //    but crouch-walking still takes the movement penalty.
+            bool moving = moveFactor > 0.2f;
+            float baseSpread = moving
+                ? Data.stillSpread + Data.movingSpread * Mathf.Clamp(moveFactor, 0.4f, 1.8f)
+                : Data.stillSpread * (crouched ? Data.crouchSpreadMultiplier : 1f);
+
+            // Bloom spread from sustained fire; crouch tightens it only when still.
+            float bloomSpread = Data.spreadDegrees * _serverBloom;
+            if (crouched && !moving) bloomSpread *= Data.crouchSpreadMultiplier;
+
+            float totalSpread = baseSpread + bloomSpread;
+            if (aimed) totalSpread *= Data.adsSpreadMultiplier;
+
+            Vector3 spreadDirection = ApplySpread(direction, totalSpread);
             _serverBloom = Mathf.Min(1f, _serverBloom + Data.bloomPerShot);
             Vector3 hitPoint = origin + spreadDirection * Data.range;
 
