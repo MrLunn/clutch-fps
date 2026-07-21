@@ -270,8 +270,8 @@ namespace ClutchFPS.Core
         }
 
         /// Merges a raid's haul into the player's stash: item counts add up,
-        /// weapon slots are unioned, and better (higher-index) variants win.
-        /// This is what makes the stash grow across raids.
+        /// weapon slots are unioned, and each slot you carried out banks the
+        /// exact weapon you extracted with. Slots you left home are untouched.
         public static void Deposit(string playerName, int ownedSlots, int[] variants,
             int[] itemIds, int[] itemCounts)
         {
@@ -285,7 +285,10 @@ namespace ClutchFPS.Core
                 while (merged.Count < variants.Length) merged.Add(-1);
                 for (int i = 0; i < variants.Length; i++)
                 {
-                    if (variants[i] > merged[i]) merged[i] = variants[i];
+                    // Only the slots you actually brought out update — so a
+                    // deliberate downgrade sticks, but weapons left safe in the
+                    // stash aren't overwritten by an empty in-raid slot.
+                    if (((ownedSlots >> i) & 1) == 1) merged[i] = variants[i];
                 }
                 stash.weaponVariants = merged.ToArray();
             }

@@ -682,8 +682,14 @@ namespace ClutchFPS.Player
                     Core.UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
             }
 
-            GUI.Label(new Rect(x, panel.yMax - 34f, w, 20f),
-                "This gear carries into your next raid.",
+            // Payout line: big total on the left, the breakdown on the right.
+            GUI.Label(new Rect(x, panel.yMax - 54f, w, 24f), $"+{summary.TotalCredits:N0} CR",
+                Core.UITheme.Style(19, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.Accent));
+            GUI.Label(new Rect(x, panel.yMax - 52f, w, 20f),
+                $"kills +{summary.KillCredits}    survive +{summary.SurviveCredits}    time +{summary.TimeCredits}",
+                Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleRight, Core.UITheme.TextDim));
+            GUI.Label(new Rect(x, panel.yMax - 28f, w, 18f),
+                "Gear secured to stash · credits added",
                 Core.UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
 
             if (Core.UITheme.Button(new Rect(Screen.width / 2f - 120f, panel.yMax + 26f, 240f, 46f),

@@ -1,4 +1,3 @@
-using Unity.Netcode;
 using UnityEngine;
 
 namespace ClutchFPS.Networking
@@ -50,15 +49,21 @@ namespace ClutchFPS.Networking
 
         private void Update()
         {
-            var networkManager = NetworkManager.Singleton;
-            bool playerActive = networkManager != null
-                && networkManager.IsListening
-                && networkManager.LocalClient?.PlayerObject != null;
-
-            if (_camera.enabled == playerActive)
+            // Drive our camera off what's actually rendering, not network state:
+            // when a raid ends the player object (and its camera) is torn down,
+            // and the network flags can lag a frame, leaving "no cameras
+            // rendering". If any other camera is live, stand down; otherwise
+            // take over so the menu always has something to draw into.
+            bool otherCameraActive = false;
+            foreach (var cam in Camera.allCameras)
             {
-                _camera.enabled = !playerActive;
-                _listener.enabled = !playerActive;
+                if (cam != _camera) { otherCameraActive = true; break; }
+            }
+
+            if (_camera.enabled == otherCameraActive)
+            {
+                _camera.enabled = !otherCameraActive;
+                _listener.enabled = !otherCameraActive;
             }
 
             if (!_camera.enabled) return;

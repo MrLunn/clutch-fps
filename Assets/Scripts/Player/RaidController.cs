@@ -37,6 +37,11 @@ namespace ClutchFPS.Player
 
         public bool HasExtracted => _extracted.Value;
 
+        // Payout rates for a successful extraction.
+        private const int CreditsPerKill = 150;
+        private const int SurviveBonus = 500;
+        private const int CreditsPerSecondLeft = 2;
+
         /// Raid summary, filled on the owning client when extraction succeeds.
         public struct RaidSummary
         {
@@ -45,6 +50,10 @@ namespace ClutchFPS.Player
             public int Kills;
             public int ItemsOut;
             public string[] Lines;
+            public int KillCredits;
+            public int SurviveCredits;
+            public int TimeCredits;
+            public int TotalCredits;
         }
 
         public RaidSummary Summary;
@@ -149,6 +158,19 @@ namespace ClutchFPS.Player
                 _weapons.ServerGetVariants(), ids, counts);
             _extracted.Value = true;
 
+            // Extraction payout: per kill, a flat survival bonus, and a bonus
+            // for every second still on the clock. Practice range pays nothing.
+            int killsThisRaid = _respawn != null ? _respawn.Kills.Value - _startingKills : 0;
+            int killCredits = 0, surviveCredits = 0, timeCredits = 0;
+            if (RaidActive)
+            {
+                killCredits = Mathf.Max(0, killsThisRaid) * CreditsPerKill;
+                surviveCredits = SurviveBonus;
+                timeCredits = Mathf.RoundToInt(TimeRemaining) * CreditsPerSecondLeft;
+            }
+            int totalCredits = killCredits + surviveCredits + timeCredits;
+            if (totalCredits > 0) StashService.AddCredits(_playerName, totalCredits);
+
             // Build the human-readable haul for the summary screen.
             var lines = new System.Collections.Generic.List<string>();
             for (int slot = 0; slot < _weapons.SlotCount; slot++)
@@ -162,7 +184,7 @@ namespace ClutchFPS.Player
                 lines.Add($"{Items.Get(ids[i]).Name} x{counts[i]}");
             }
             // Netcode can't serialize string[]; send one joined string.
-            SummaryClientRpc(string.Join("|", lines));
+            SummaryClientRpc(string.Join("|", lines), killCredits, surviveCredits, timeCredits);
             LeaveWorldClientRpc();
         }
 
@@ -177,7 +199,7 @@ namespace ClutchFPS.Player
         }
 
         [ClientRpc]
-        private void SummaryClientRpc(string joinedLines)
+        private void SummaryClientRpc(string joinedLines, int killCredits, int surviveCredits, int timeCredits)
         {
             if (!IsOwner) return;
             var lines = string.IsNullOrEmpty(joinedLines)
@@ -189,7 +211,11 @@ namespace ClutchFPS.Player
                 Duration = Time.time - _raidStartTime,
                 Kills = _respawn != null ? _respawn.Kills.Value - _startingKills : 0,
                 ItemsOut = lines.Length,
-                Lines = lines
+                Lines = lines,
+                KillCredits = killCredits,
+                SurviveCredits = surviveCredits,
+                TimeCredits = timeCredits,
+                TotalCredits = killCredits + surviveCredits + timeCredits
             };
         }
     }

@@ -146,8 +146,26 @@ namespace ClutchFPS.Environment
             {
                 var weapon = player.WeaponAt(_weaponSlot.Value);
                 if (weapon == null) return false;
+
+                // If this slot already holds a weapon, drop that one where the
+                // player stands rather than destroying it — a true swap.
+                bool replacing = player.OwnsSlot(_weaponSlot.Value);
+                int oldVariant = weapon.VariantIndex;
+                var oldData = weapon.Data;
+
                 player.ServerGrantSlot(_weaponSlot.Value);
-                if (_weaponVariant.Value >= 0) weapon.ServerSetWeaponData(_weaponVariant.Value);
+                weapon.ServerSetWeaponData(_weaponVariant.Value);
+
+                if (replacing)
+                {
+                    int dropVariant = oldVariant;
+                    if (dropVariant < 0 && WeaponDatabase.Instance != null)
+                    {
+                        dropVariant = WeaponDatabase.Instance.IndexOf(oldData);
+                    }
+                    LootSpawner.SpawnWeapon(
+                        LootSpawner.DropPoint(player.transform), _weaponSlot.Value, dropVariant);
+                }
             }
             else
             {
