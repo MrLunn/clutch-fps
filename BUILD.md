@@ -1,14 +1,36 @@
 # Building & sharing Clutch FPS
 
-Builds are automated. Every push to `main` builds a Windows client via GitHub
-Actions and publishes it to a permanent **Latest** release, so friends always
-grab the newest version from one link:
+Friends always download the newest build from one permanent link:
 
 **https://github.com/MrLunn/clutch-fps/releases/latest**
 
 They download `ClutchFPS-Windows.zip`, unzip the whole folder, and run
 `ClutchFPS.exe`. (Windows may warn about an unsigned app → *More info → Run
 anyway* — normal for indie playtests.)
+
+## Updating the build (the day-to-day way)
+
+Builds locally with your already-licensed editor, then republishes the
+`latest` release — no cloud license needed:
+
+1. **Close the Unity editor** (it locks the project while open).
+2. In PowerShell, from the project folder: `./publish.ps1`
+
+That builds the Windows player, zips it, and uploads it over the `latest`
+release. The download link above serves the new build immediately.
+
+Requires the GitHub CLI (`gh`) authenticated once (`gh auth login`) — already
+done on this machine.
+
+---
+
+## Optional: fully-automatic cloud builds (CI)
+
+`.github/workflows/build.yml` can build in the cloud on every push, but it's
+**manual-only right now** because GitHub's runners need a Unity license, and
+Unity 6 Personal activation in CI is fiddly. The local `publish.ps1` avoids all
+of that. If you later want auto-on-push, set the license secrets below and
+switch the workflow trigger back to `push`.
 
 ---
 

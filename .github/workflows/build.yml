@@ -1,11 +1,11 @@
 name: Build & Release
 
-# Builds a Windows client on every push to main and republishes it to the
-# permanent "latest" release, so friends always download the newest version
-# from: https://github.com/<you>/clutch-fps/releases/latest
+# Cloud build via GameCI. Disabled by default (manual-only) because it needs a
+# Unity license configured in CI (UNITY_LICENSE secret) — see BUILD.md. The
+# day-to-day path is local: run ./publish.ps1, which builds with your licensed
+# editor and republishes the "latest" release. Re-enable the push trigger here
+# once the license secrets are set if you want fully-automatic cloud builds.
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 permissions:
