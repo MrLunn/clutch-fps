@@ -316,9 +316,21 @@ namespace ClutchFPS.Environment
         {
             _dead = true;
             _agent.ResetPath();
+            CreditKiller(attackerClientId);
             DropLoot();
             SetDeadClientRpc(true);
             Invoke(nameof(RespawnServer), respawnDelay);
+        }
+
+        /// Count the kill for the player who downed this AI and pay them.
+        private void CreditKiller(ulong attackerClientId)
+        {
+            if (attackerClientId == AiClientId) return;
+            if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(attackerClientId, out var client)) return;
+            var playerObject = client.PlayerObject;
+            if (playerObject == null) return;
+            if (playerObject.TryGetComponent<PlayerRespawn>(out var respawn)) respawn.Kills.Value++;
+            if (playerObject.TryGetComponent<RaidController>(out var raid)) raid.ServerAwardKill(false);
         }
 
         /// Corpse loot: always a little ammo, sometimes a medkit, occasionally a

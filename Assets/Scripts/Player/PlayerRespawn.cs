@@ -111,6 +111,11 @@ namespace ClutchFPS.Player
             {
                 attackerRespawn.Kills.Value++;
                 attackerName = attackerRespawn.ResolvedName;
+                // Killing a real player pays triple an AI.
+                if (attacker.PlayerObject.TryGetComponent<RaidController>(out var attackerRaid))
+                {
+                    attackerRaid.ServerAwardKill(true);
+                }
             }
             LastKiller.Value = attackerClientId == OwnerClientId ? "themselves" : attackerName;
             KillFeedClientRpc(attackerName, ResolvedName, attackerClientId == OwnerClientId);

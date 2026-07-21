@@ -78,6 +78,31 @@ namespace ClutchFPS.Networking
             return networkManager.NetworkConfig.NetworkTransport as UnityTransport;
         }
 
+        private static string _localIp;
+        /// This machine's LAN IPv4, resolved once, for the host to share.
+        private static string LocalIPv4
+        {
+            get
+            {
+                if (_localIp != null) return _localIp;
+                _localIp = "127.0.0.1";
+                try
+                {
+                    foreach (var ip in System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList)
+                    {
+                        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                            && !System.Net.IPAddress.IsLoopback(ip))
+                        {
+                            _localIp = ip.ToString();
+                            break;
+                        }
+                    }
+                }
+                catch (System.Exception) { /* fall back to loopback */ }
+                return _localIp;
+            }
+        }
+
         // Prefabs spawned at runtime (dropped loot) must be registered before
         // connecting, identically on host and clients so the spawn hashes
         // match. Done here because both peers pass through this screen. Wrapped
@@ -127,7 +152,7 @@ namespace ClutchFPS.Networking
             }
 
             const float width = 380f;
-            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.42f, width, 306f);
+            Rect panel = new((Screen.width - width) / 2f, Screen.height * 0.42f, width, 332f);
             UITheme.Panel3D(panel);
 
             float x = panel.x + 22f;
@@ -177,7 +202,12 @@ namespace ClutchFPS.Networking
                 EnsureRuntimePrefabs(networkManager);
                 networkManager.StartClient();
             }
-            y += 42f;
+            y += 38f;
+
+            // The host shares this so a friend can type it into Join (LAN/VPN).
+            GUI.Label(new Rect(x, y, w, 16f), $"YOUR IP  {LocalIPv4}   ·   share for LAN / VPN play",
+                UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
+            y += 22f;
 
             float half = (w - 8f) / 2f;
             if (UITheme.Button(new Rect(x, y, half, 32f), "Stash"))

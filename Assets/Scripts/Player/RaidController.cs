@@ -37,10 +37,15 @@ namespace ClutchFPS.Player
 
         public bool HasExtracted => _extracted.Value;
 
-        // Payout rates for a successful extraction.
-        private const int CreditsPerKill = 150;
+        // Kill rewards are paid the instant you get the kill (banked even if you
+        // die later); a real player is worth 3x an AI. Survival and time bonuses
+        // are paid on extraction.
+        private const int CreditsPerAiKill = 150;
+        private const int CreditsPerPlayerKill = 450;
         private const int SurviveBonus = 500;
         private const int CreditsPerSecondLeft = 2;
+
+        private int _killCreditsEarned; // this raid, for the summary breakdown
 
         /// Raid summary, filled on the owning client when extraction succeeds.
         public struct RaidSummary
@@ -145,6 +150,16 @@ namespace ClutchFPS.Player
             _inventory.ServerImport(ids.ToArray(), counts.ToArray());
         }
 
+        /// Server-side: pay the killer for a kill, right away. Called when an AI
+        /// or another player dies to this player.
+        public void ServerAwardKill(bool victimWasPlayer)
+        {
+            if (!IsServer || !RaidActive || string.IsNullOrEmpty(_playerName)) return;
+            int amount = victimWasPlayer ? CreditsPerPlayerKill : CreditsPerAiKill;
+            _killCreditsEarned += amount;
+            StashService.AddCredits(_playerName, amount);
+        }
+
         /// Called by the extraction zone on the server.
         public void ServerExtract()
         {
@@ -158,18 +173,17 @@ namespace ClutchFPS.Player
                 _weapons.ServerGetVariants(), ids, counts);
             _extracted.Value = true;
 
-            // Extraction payout: per kill, a flat survival bonus, and a bonus
-            // for every second still on the clock. Practice range pays nothing.
-            int killsThisRaid = _respawn != null ? _respawn.Kills.Value - _startingKills : 0;
-            int killCredits = 0, surviveCredits = 0, timeCredits = 0;
+            // Kill credits were already banked as they happened. Extraction adds
+            // a flat survival bonus plus a bonus per second left on the clock.
+            // Practice range pays nothing.
+            int surviveCredits = 0, timeCredits = 0;
             if (RaidActive)
             {
-                killCredits = Mathf.Max(0, killsThisRaid) * CreditsPerKill;
                 surviveCredits = SurviveBonus;
                 timeCredits = Mathf.RoundToInt(TimeRemaining) * CreditsPerSecondLeft;
             }
-            int totalCredits = killCredits + surviveCredits + timeCredits;
-            if (totalCredits > 0) StashService.AddCredits(_playerName, totalCredits);
+            int extractCredits = surviveCredits + timeCredits;
+            if (extractCredits > 0) StashService.AddCredits(_playerName, extractCredits);
 
             // Build the human-readable haul for the summary screen.
             var lines = new System.Collections.Generic.List<string>();
@@ -184,7 +198,7 @@ namespace ClutchFPS.Player
                 lines.Add($"{Items.Get(ids[i]).Name} x{counts[i]}");
             }
             // Netcode can't serialize string[]; send one joined string.
-            SummaryClientRpc(string.Join("|", lines), killCredits, surviveCredits, timeCredits);
+            SummaryClientRpc(string.Join("|", lines), _killCreditsEarned, surviveCredits, timeCredits);
             LeaveWorldClientRpc();
         }
 
