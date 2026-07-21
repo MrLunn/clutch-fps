@@ -13,10 +13,23 @@ namespace ClutchFPS.Player
     [RequireComponent(typeof(PlayerInventory), typeof(PlayerWeaponController))]
     public class RaidController : NetworkBehaviour
     {
+        /// How long a raid lasts before the exits lock and stragglers are lost.
+        public const float RaidDuration = 480f; // 8 minutes
+
         private PlayerInventory _inventory;
         private PlayerWeaponController _weapons;
         private PlayerRespawn _respawn;
+        private Health _health;
         private string _playerName;
+        private bool _timedOut;
+
+        /// Raids only run on the actual maps; the shooting range is untimed.
+        public bool RaidActive =>
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "ShootingRange";
+
+        /// Seconds left in the raid (owner HUD), clamped at zero.
+        public float TimeRemaining =>
+            Mathf.Max(0f, RaidDuration - (Time.time - _raidStartTime));
 
         // Synced so the owning client's HUD can show extract state.
         private readonly NetworkVariable<bool> _extracted = new(false,
@@ -44,6 +57,25 @@ namespace ClutchFPS.Player
             _inventory = GetComponent<PlayerInventory>();
             _weapons = GetComponent<PlayerWeaponController>();
             _respawn = GetComponent<PlayerRespawn>();
+            _health = GetComponent<Health>();
+        }
+
+        private void Update()
+        {
+            // Server enforces the clock: running out of time with no extract is
+            // a failed raid — you die and lose everything you were carrying,
+            // exactly as if you'd been killed.
+            if (!IsServer || _timedOut || _extracted.Value || !RaidActive) return;
+            if (_respawn != null && _respawn.IsDead) return;
+            if (Time.time - _raidStartTime < RaidDuration) return;
+
+            _timedOut = true;
+            if (_health != null)
+            {
+                _health.TakeDamage(999999f, OwnerClientId);
+                // Overwrite the "themselves" label the suicide path just set.
+                if (_respawn != null) _respawn.LastKiller.Value = "the raid clock";
+            }
         }
 
         public override void OnNetworkSpawn()

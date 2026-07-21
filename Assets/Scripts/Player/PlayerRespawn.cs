@@ -33,6 +33,10 @@ namespace ClutchFPS.Player
         public readonly NetworkVariable<FixedString32Bytes> DisplayName = new(default,
             writePerm: NetworkVariableWritePermission.Owner);
 
+        // Who landed the killing blow, shown on the death screen.
+        public readonly NetworkVariable<FixedString32Bytes> LastKiller = new(default,
+            writePerm: NetworkVariableWritePermission.Server);
+
         public string ResolvedName =>
             DisplayName.Value.IsEmpty ? $"Player {OwnerClientId}" : DisplayName.Value.ToString();
 
@@ -75,6 +79,7 @@ namespace ClutchFPS.Player
                 attackerRespawn.Kills.Value++;
                 attackerName = attackerRespawn.ResolvedName;
             }
+            LastKiller.Value = attackerClientId == OwnerClientId ? "themselves" : attackerName;
             KillFeedClientRpc(attackerName, ResolvedName, attackerClientId == OwnerClientId);
             Invoke(nameof(RespawnServer), respawnDelay);
         }

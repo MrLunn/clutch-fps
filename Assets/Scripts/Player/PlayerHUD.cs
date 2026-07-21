@@ -115,6 +115,7 @@ namespace ClutchFPS.Player
             DrawRadar();
             DrawKillFeed();
             DrawPractice();
+            DrawRaidTimer();
             DrawExtraction();
             if (Keyboard.current != null && Keyboard.current.vKey.isPressed) DrawScoreboard();
             if (_settingsOpen) DrawSettings();
@@ -478,6 +479,27 @@ namespace ClutchFPS.Player
                 Core.UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
         }
 
+        private void DrawRaidTimer()
+        {
+            if (raid == null || !raid.RaidActive || raid.HasExtracted) return;
+            if (respawn != null && respawn.IsDead) return;
+
+            float remaining = raid.TimeRemaining;
+            int secs = Mathf.CeilToInt(remaining);
+            Color c = remaining <= 60f ? Core.UITheme.Danger : Core.UITheme.TextBright;
+            // Flash amber in the final 30 seconds.
+            if (remaining <= 30f && (int)(Time.time * 2f) % 2 == 0) c = Core.UITheme.Accent;
+
+            const float w = 116f, h = 44f;
+            Rect r = new((Screen.width - w) / 2f, 14f, w, h);
+            Core.UITheme.Fill(r, new Color(0.05f, 0.06f, 0.07f, 0.82f));
+            Core.UITheme.Fill(new Rect(r.x, r.yMax - 2f, r.width, 2f), c);
+            GUI.Label(new Rect(r.x, r.y + 4f, r.width, 14f), "RAID TIME",
+                Core.UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
+            GUI.Label(new Rect(r.x, r.y + 16f, r.width, 24f), $"{secs / 60}:{secs % 60:00}",
+                Core.UITheme.Style(22, FontStyle.Bold, TextAnchor.MiddleCenter, c));
+        }
+
         private void DrawPractice()
         {
             if (practice == null) return;
@@ -795,10 +817,17 @@ namespace ClutchFPS.Player
 
             GUI.Label(new Rect(0, Screen.height / 2f - 66f, Screen.width, 54f), "YOU DIED",
                 Core.UITheme.Style(46, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.Danger));
-            GUI.Label(new Rect(0, Screen.height / 2f - 12f, Screen.width, 20f),
+
+            string killer = respawn != null ? respawn.LastKiller.Value.ToString() : "";
+            if (!string.IsNullOrEmpty(killer))
+            {
+                GUI.Label(new Rect(0, Screen.height / 2f - 14f, Screen.width, 22f), $"Killed by  {killer}",
+                    Core.UITheme.Style(16, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextBright));
+            }
+            GUI.Label(new Rect(0, Screen.height / 2f + 12f, Screen.width, 20f),
                 "L O O T   L O S T",
                 Core.UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextDim));
-            GUI.Label(new Rect(0, Screen.height / 2f + 18f, Screen.width, 24f), "Respawning...",
+            GUI.Label(new Rect(0, Screen.height / 2f + 40f, Screen.width, 24f), "Respawning...",
                 Core.UITheme.Style(15, FontStyle.Normal, TextAnchor.MiddleCenter, Core.UITheme.TextBright));
         }
 

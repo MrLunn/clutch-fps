@@ -266,8 +266,39 @@ namespace ClutchFPS.Environment
         {
             _dead = true;
             _agent.ResetPath();
+            DropLoot();
             SetDeadClientRpc(true);
             Invoke(nameof(RespawnServer), respawnDelay);
+        }
+
+        /// Corpse loot: always a little ammo, sometimes a medkit, occasionally a
+        /// weapon — enough that clearing AI feeds the stash without flooding it.
+        private void DropLoot()
+        {
+            Vector3 basePos = transform.position + Vector3.up * 0.4f;
+
+            // Ammo, biased to the common rifle round.
+            bool rifleAmmo = Random.value < 0.65f;
+            int ammoId = rifleAmmo ? (int)ItemType.Ammo556 : (int)ItemType.Ammo9mm;
+            int ammoAmount = rifleAmmo ? Random.Range(15, 31) : Random.Range(10, 21);
+            LootSpawner.SpawnItem(Scatter(basePos), ammoId, ammoAmount);
+
+            if (Random.value < 0.3f)
+            {
+                LootSpawner.SpawnItem(Scatter(basePos), (int)ItemType.Medkit, 1);
+            }
+            // Occasional weapon: pistol (slot 1) or SMG (slot 2), stock variant.
+            if (Random.value < 0.12f)
+            {
+                int slot = Random.value < 0.6f ? 1 : 2;
+                LootSpawner.SpawnWeapon(Scatter(basePos), slot, -1);
+            }
+        }
+
+        private static Vector3 Scatter(Vector3 origin)
+        {
+            Vector2 offset = Random.insideUnitCircle * 0.6f;
+            return origin + new Vector3(offset.x, 0f, offset.y);
         }
 
         private void RespawnServer()
