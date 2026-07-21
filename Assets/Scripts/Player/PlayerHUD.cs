@@ -727,43 +727,80 @@ namespace ClutchFPS.Player
 
         private void DrawScoreboard()
         {
-            EnsureStyles();
-            _smallStyle.alignment = TextAnchor.MiddleLeft;
             var players = Object.FindObjectsByType<PlayerRespawn>(FindObjectsSortMode.None);
             System.Array.Sort(players, (a, b) => b.Kills.Value.CompareTo(a.Kills.Value));
 
-            float height = 76f + players.Length * 28f;
-            Rect panel = new(Screen.width / 2f - 190f, Screen.height * 0.18f, 380f, height);
+            const float pw = 480f, rowH = 30f;
+            float height = 78f + players.Length * rowH + 8f;
+            Rect panel = new(Screen.width / 2f - pw / 2f, Screen.height * 0.16f, pw, height);
+            UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.35f));
             UITheme.Panel3D(panel);
+            UITheme.Fill(new Rect(panel.x, panel.y, panel.width, 3f), UITheme.Accent);
 
             GUI.Label(new Rect(panel.x + 20f, panel.y + 12f, panel.width - 40f, 22f), "SCOREBOARD",
                 UITheme.Style(15, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextBright));
+            GUI.Label(new Rect(panel.x + 20f, panel.y + 12f, panel.width - 40f, 22f),
+                $"{players.Length} OPERATOR{(players.Length == 1 ? "" : "S")}",
+                UITheme.Style(11, FontStyle.Bold, TextAnchor.MiddleRight, UITheme.TextDim));
 
             float rowX = panel.x + 20f;
             float rowW = panel.width - 40f;
-            GUI.Label(new Rect(rowX, panel.y + 38f, rowW - 100f, 18f), "OPERATOR",
-                UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
-            GUI.Label(new Rect(rowX + rowW - 96f, panel.y + 38f, 40f, 18f), "K",
-                UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
-            GUI.Label(new Rect(rowX + rowW - 48f, panel.y + 38f, 40f, 18f), "D",
-                UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim));
-            UITheme.Fill(new Rect(rowX, panel.y + 56f, rowW, 1f), UITheme.Line);
+            // Column x-positions, laid out from the right edge.
+            float pingX = rowX + rowW - 58f;
+            float kdX = pingX - 54f;
+            float dX = kdX - 42f;
+            float kX = dX - 42f;
+            float nameW = kX - rowX - 24f;
 
-            float y = panel.y + 62f;
+            float hy = panel.y + 40f;
+            var hs = UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextDim);
+            GUI.Label(new Rect(rowX + 22f, hy, nameW, 16f), "OPERATOR",
+                UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
+            GUI.Label(new Rect(kX, hy, 42f, 16f), "K", hs);
+            GUI.Label(new Rect(dX, hy, 42f, 16f), "D", hs);
+            GUI.Label(new Rect(kdX, hy, 54f, 16f), "K/D", hs);
+            GUI.Label(new Rect(pingX, hy, 58f, 16f), "PING", hs);
+            UITheme.Fill(new Rect(rowX, panel.y + 58f, rowW, 1f), UITheme.Line);
+
+            var transport = NetworkManager.Singleton != null
+                ? NetworkManager.Singleton.NetworkConfig.NetworkTransport : null;
+
+            float y = panel.y + 64f;
             foreach (var player in players)
             {
                 bool isSelf = player.IsOwner;
-                if (isSelf) UITheme.Fill(new Rect(rowX - 6f, y, rowW + 12f, 26f), new Color(0.95f, 0.71f, 0.22f, 0.10f));
-                var nameColor = isSelf ? UITheme.Accent : UITheme.TextBright;
-                GUI.Label(new Rect(rowX, y, rowW - 100f, 26f), player.ResolvedName,
+                bool dead = player.IsDead;
+                if (isSelf) UITheme.Fill(new Rect(rowX - 6f, y, rowW + 12f, rowH), new Color(0.95f, 0.71f, 0.22f, 0.12f));
+
+                // Alive/dead dot.
+                UITheme.Fill(new Rect(rowX + 2f, y + rowH / 2f - 3f, 6f, 6f),
+                    dead ? UITheme.Danger : UITheme.Success);
+
+                Color nameColor = dead ? UITheme.TextDim : isSelf ? UITheme.Accent : UITheme.TextBright;
+                GUI.Label(new Rect(rowX + 22f, y, nameW, rowH), player.ResolvedName,
                     UITheme.Style(13, isSelf ? FontStyle.Bold : FontStyle.Normal, TextAnchor.MiddleLeft, nameColor));
-                GUI.Label(new Rect(rowX + rowW - 96f, y, 40f, 26f), player.Kills.Value.ToString(),
-                    UITheme.Style(13, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextBright));
-                GUI.Label(new Rect(rowX + rowW - 48f, y, 40f, 26f), player.Deaths.Value.ToString(),
-                    UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
-                y += 28f;
+
+                int kills = player.Kills.Value, deaths = player.Deaths.Value;
+                float kd = kills / Mathf.Max(1f, deaths);
+                var cellBright = UITheme.Style(13, FontStyle.Bold, TextAnchor.MiddleCenter, UITheme.TextBright);
+                var cellDim = UITheme.Style(13, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim);
+                GUI.Label(new Rect(kX, y, 42f, rowH), kills.ToString(), cellBright);
+                GUI.Label(new Rect(dX, y, 42f, rowH), deaths.ToString(), cellDim);
+                GUI.Label(new Rect(kdX, y, 54f, rowH), kd.ToString("0.0"), cellBright);
+
+                // Ping (host sees each client; a client only sees the host link).
+                string ping = "—";
+                if (transport != null && !isSelf)
+                {
+                    ulong rtt = transport.GetCurrentRtt(player.OwnerClientId);
+                    if (rtt > 0) ping = $"{rtt}ms";
+                }
+                else if (isSelf) ping = "you";
+                GUI.Label(new Rect(pingX, y, 58f, rowH), ping,
+                    UITheme.Style(11, FontStyle.Normal, TextAnchor.MiddleCenter, UITheme.TextDim));
+
+                y += rowH;
             }
-            _smallStyle.alignment = TextAnchor.MiddleRight;
         }
 
         private float TuningSlider(string label, float value, float min, float max)
