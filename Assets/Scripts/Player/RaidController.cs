@@ -106,20 +106,33 @@ namespace ClutchFPS.Player
 
         private void LoadStashServer()
         {
+            // First-timers get a starter kit so the stash is never empty.
+            StashService.EnsureStarter(_playerName);
             var stash = StashService.Get(_playerName);
 
-            // Weapons you've banked come with you into the raid...
+            // Banked weapons come with you (owned slots persist across raids).
             if (stash != null)
             {
                 _weapons.ServerApplyLoadout(stash.ownedSlots, stash.weaponVariants);
             }
 
-            // ...but the stash itself stays safe at base. Each raid starts on a
-            // standard ammo kit, so dying costs you the raid's loot, not
-            // everything you've ever banked.
-            _inventory.ServerImport(
-                new[] { (int)ItemType.Ammo556, (int)ItemType.Ammo9mm },
-                new[] { 60, 30 });
+            // A free base ammo kit each raid so you're never sent in dry...
+            var ids = new System.Collections.Generic.List<int>
+                { (int)ItemType.Ammo556, (int)ItemType.Ammo9mm };
+            var counts = new System.Collections.Generic.List<int> { 60, 30 };
+
+            // ...plus your stash consumables, checked out for the raid: removed
+            // from the stash now, deposited back on extract, lost on death.
+            // This is what gives bought medkits and ammo real stakes.
+            StashService.CheckoutItems(_playerName, out int[] loadIds, out int[] loadCounts);
+            for (int i = 0; i < loadIds.Length; i++)
+            {
+                int at = ids.IndexOf(loadIds[i]);
+                if (at >= 0) counts[at] += loadCounts[i];
+                else { ids.Add(loadIds[i]); counts.Add(loadCounts[i]); }
+            }
+
+            _inventory.ServerImport(ids.ToArray(), counts.ToArray());
         }
 
         /// Called by the extraction zone on the server.
