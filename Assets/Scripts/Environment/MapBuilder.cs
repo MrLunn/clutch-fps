@@ -50,6 +50,19 @@ namespace ClutchFPS.Environment
             BuildContainerYard();
             BuildPlaza();
             BuildSpawnYard();
+            RegisterZones();
+        }
+
+        /// Publish each zone's footprint for the HUD radar's location label.
+        /// Rectangles roughly match the geometry each Build* method lays down.
+        private void RegisterZones()
+        {
+            MapZones.Clear(gameObject.scene.name);
+            MapZones.Add("WAREHOUSE", new Vector2(-26f, 4f), new Vector2(32f, 36f));
+            MapZones.Add("OFFICES", new Vector2(19f, 34f), new Vector2(40f, 26f));
+            MapZones.Add("CONTAINER YARD", new Vector2(28f, -4f), new Vector2(30f, 42f));
+            MapZones.Add("PLAZA", new Vector2(0f, 0f), new Vector2(34f, 34f));
+            MapZones.Add("STAGING AREA", new Vector2(0f, -33f), new Vector2(46f, 22f));
         }
 
         // ---------- primitives ----------

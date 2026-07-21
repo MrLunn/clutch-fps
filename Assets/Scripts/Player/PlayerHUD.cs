@@ -1,8 +1,11 @@
+using System.Collections.Generic;
 using ClutchFPS.Core;
+using ClutchFPS.Environment;
 using ClutchFPS.Weapons;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 namespace ClutchFPS.Player
 {
@@ -30,9 +33,20 @@ namespace ClutchFPS.Player
 
         private bool _wasExtracted;
 
+        // Radar contacts, refreshed a few times a second rather than every
+        // OnGUI pass (OnGUI runs twice a frame; FindObjects is not free).
+        private readonly List<(Vector3 pos, Color color)> _radarBlips = new();
+        private float _nextRadarScan;
+
         private void Update()
         {
             if (!IsOwner) return;
+
+            if (Time.time >= _nextRadarScan)
+            {
+                _nextRadarScan = Time.time + 0.25f;
+                ScanRadar();
+            }
 
             // Extraction ends the raid for this player: free the cursor and
             // stop gameplay input (LocalMenuOpen gates look/fire/interact).
@@ -98,6 +112,7 @@ namespace ClutchFPS.Player
             else DrawCrosshair();
             DrawHitmarker();
             DrawStatus();
+            DrawRadar();
             DrawKillFeed();
             DrawPractice();
             DrawExtraction();
@@ -119,6 +134,131 @@ namespace ClutchFPS.Player
                 }
                 return _pixel;
             }
+        }
+
+        private void ScanRadar()
+        {
+            _radarBlips.Clear();
+
+            foreach (var enemy in FindObjectsByType<EnemyAI>(FindObjectsSortMode.None))
+            {
+                if (enemy.TryGetComponent<Health>(out var enemyHealth) && enemyHealth.CurrentHealth <= 0f) continue;
+                _radarBlips.Add((enemy.transform.position, Core.UITheme.Danger));
+            }
+
+            foreach (var other in FindObjectsByType<PlayerRespawn>(FindObjectsSortMode.None))
+            {
+                if (other == respawn || other.IsDead) continue;
+                _radarBlips.Add((other.transform.position, Core.UITheme.Success));
+            }
+        }
+
+        // Baked once: a translucent disk with an accent rim, a mid ring and a
+        // faint cross, so the per-frame draw is one blit plus the blips.
+        private static Texture2D _radarDisk;
+        private static Texture2D RadarDisk
+        {
+            get
+            {
+                if (_radarDisk != null) return _radarDisk;
+
+                const int d = 168;
+                float r = d / 2f;
+                var tex = new Texture2D(d, d, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+                var clear = new Color(0f, 0f, 0f, 0f);
+                var fill = new Color(0.04f, 0.06f, 0.07f, 0.80f);
+                var grid = new Color(0.35f, 0.55f, 0.62f, 0.16f);
+                var accent = Core.UITheme.Accent;
+                var rim = new Color(accent.r, accent.g, accent.b, 0.9f);
+                var midRing = new Color(accent.r, accent.g, accent.b, 0.3f);
+
+                for (int y = 0; y < d; y++)
+                {
+                    for (int x = 0; x < d; x++)
+                    {
+                        float dx = x - r + 0.5f, dy = y - r + 0.5f;
+                        float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                        Color c;
+                        if (dist > r) c = clear;
+                        else if (dist > r - 2.5f) c = rim;
+                        else if (Mathf.Abs(dist - r * 0.5f) < 1f) c = midRing;
+                        else if (Mathf.Abs(dx) < 0.9f || Mathf.Abs(dy) < 0.9f)
+                            c = new Color(fill.r + grid.r * grid.a, fill.g + grid.g * grid.a, fill.b + grid.b * grid.a, fill.a);
+                        else c = fill;
+                        tex.SetPixel(x, y, c);
+                    }
+                }
+                tex.Apply();
+                _radarDisk = tex;
+                return tex;
+            }
+        }
+
+        private void DrawRadar()
+        {
+            const float margin = 18f;
+            const float radius = 82f;
+            const float rangeMetres = 48f;
+            Vector2 centre = new(margin + radius, margin + radius);
+
+            // Disk.
+            Color prev = GUI.color;
+            GUI.color = Color.white;
+            GUI.DrawTexture(new Rect(centre.x - radius, centre.y - radius, radius * 2f, radius * 2f), RadarDisk);
+
+            // Sweep line, rotating for that radar feel.
+            Matrix4x4 prevMatrix = GUI.matrix;
+            GUIUtility.RotateAroundPivot((Time.time * 90f) % 360f, centre);
+            var accent = Core.UITheme.Accent;
+            GUI.color = new Color(accent.r, accent.g, accent.b, 0.22f);
+            GUI.DrawTexture(new Rect(centre.x - 1f, centre.y - radius + 3f, 2f, radius - 3f), Pixel);
+            GUI.matrix = prevMatrix;
+
+            // Contacts, rotated so the player's facing is up.
+            float scale = radius / rangeMetres;
+            float yaw = transform.eulerAngles.y * Mathf.Deg2Rad;
+            float sin = Mathf.Sin(yaw), cos = Mathf.Cos(yaw);
+            Vector3 self = transform.position;
+
+            foreach (var (pos, color) in _radarBlips)
+            {
+                float dx = pos.x - self.x, dz = pos.z - self.z;
+                if (dx * dx + dz * dz > rangeMetres * rangeMetres) continue;
+                float localRight = dx * cos - dz * sin;
+                float localFwd = dx * sin + dz * cos;
+                float px = centre.x + localRight * scale;
+                float py = centre.y - localFwd * scale;
+                GUI.color = color;
+                GUI.DrawTexture(new Rect(px - 2.5f, py - 2.5f, 5f, 5f), Pixel);
+            }
+
+            // Player marker: a small arrow pointing up (forward).
+            GUI.color = Core.UITheme.TextBright;
+            GUI.DrawTexture(new Rect(centre.x - 1f, centre.y - 6f, 2f, 10f), Pixel);
+            GUI.DrawTexture(new Rect(centre.x - 3f, centre.y - 1f, 6f, 2f), Pixel);
+            GUI.color = prev;
+
+            // Location label beneath the disk.
+            string zone = MapZones.ZoneAt(self) ?? PrettyScene();
+            GUI.Label(new Rect(centre.x - radius, centre.y + radius + 5f, radius * 2f, 20f), zone,
+                Core.UITheme.Style(14, FontStyle.Bold, TextAnchor.MiddleCenter, Core.UITheme.TextBright));
+        }
+
+        /// Scene name as a display label: "ShootingRange" -> "SHOOTING RANGE",
+        /// "Raid_Complex" -> "RAID COMPLEX". Only used when no zones are
+        /// registered (e.g. the range), otherwise the zone name wins.
+        private static string PrettyScene()
+        {
+            string name = SceneManager.GetActiveScene().name;
+            var sb = new System.Text.StringBuilder(name.Length + 4);
+            for (int i = 0; i < name.Length; i++)
+            {
+                char ch = name[i];
+                if (ch == '_') { sb.Append(' '); continue; }
+                if (i > 0 && char.IsUpper(ch) && !char.IsUpper(name[i - 1])) sb.Append(' ');
+                sb.Append(ch);
+            }
+            return sb.ToString().ToUpperInvariant();
         }
 
         /// Aimed reticle: a centre dot inside a thin ring, with four short
