@@ -329,18 +329,16 @@ namespace ClutchFPS.Networking
         {
             if (!networkManager.IsServer || string.IsNullOrEmpty(ConnectionService.JoinCode)) return;
 
-            const float w = 196f, h = 46f;
+            const float w = 178f, h = 46f;
             Rect chip = new(Screen.width - w - 16f, 14f, w, h);
             UITheme.Fill(chip, new Color(0.05f, 0.06f, 0.07f, 0.85f));
             UITheme.Fill(new Rect(chip.x, chip.yMax - 2f, chip.width, 2f), UITheme.Accent);
             GUI.Label(new Rect(chip.x + 12f, chip.y + 5f, chip.width - 24f, 14f), "JOIN CODE",
                 UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
-            GUI.Label(new Rect(chip.x + 12f, chip.y + 17f, chip.width - 70f, 24f), ConnectionService.JoinCode,
+            GUI.Label(new Rect(chip.x + 12f, chip.y + 5f, chip.width - 24f, 14f), "F1 TO COPY",
+                UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleRight, UITheme.TextDim));
+            GUI.Label(new Rect(chip.x + 12f, chip.y + 17f, chip.width - 24f, 24f), ConnectionService.JoinCode,
                 UITheme.Style(20, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.Accent));
-            if (UITheme.Button(new Rect(chip.xMax - 56f, chip.y + 12f, 48f, 24f), "Copy"))
-            {
-                GUIUtility.systemCopyBuffer = ConnectionService.JoinCode;
-            }
         }
 
         /// Darkens the live 3D scene behind the menu and frames it.

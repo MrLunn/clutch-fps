@@ -1063,7 +1063,12 @@ namespace ClutchFPS.Player
 
         private void DrawSettings()
         {
-            const float panelW = 340f, panelH = 540f;
+            // Show the join code here (cursor is free) since the HUD chip can't
+            // be clicked while aiming.
+            bool hosting = NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer
+                && !string.IsNullOrEmpty(Networking.ConnectionService.JoinCode);
+
+            float panelW = 340f, panelH = hosting ? 588f : 540f;
             Rect panel = new(Screen.width / 2f - panelW / 2f, Screen.height / 2f - panelH / 2f, panelW, panelH);
             UITheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.55f));
             UITheme.Panel3D(panel);
@@ -1076,6 +1081,22 @@ namespace ClutchFPS.Player
             float x = panel.x + 20f;
             float w = panel.width - 40f;
             float y = panel.y + 46f;
+
+            if (hosting)
+            {
+                Core.UITheme.Header(new Rect(x, y, w, 18f), "Session");
+                y += 24f;
+                Rect codeRect = new(x, y, w - 72f, 32f);
+                Core.UITheme.Fill(codeRect, new Color(0.05f, 0.06f, 0.07f, 0.9f));
+                GUI.Label(new Rect(codeRect.x + 10f, codeRect.y, codeRect.width - 12f, 32f),
+                    Networking.ConnectionService.JoinCode,
+                    Core.UITheme.Style(20, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.Accent));
+                if (Core.UITheme.Button(new Rect(x + w - 66f, y, 66f, 32f), "Copy"))
+                {
+                    GUIUtility.systemCopyBuffer = Networking.ConnectionService.JoinCode;
+                }
+                y += 42f;
+            }
 
             UITheme.Header(new Rect(x, y, w, 18f), "Crosshair");
             y += 26f;
