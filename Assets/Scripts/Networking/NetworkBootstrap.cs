@@ -113,13 +113,9 @@ namespace ClutchFPS.Networking
             var networkManager = NetworkManager.Singleton;
             if (networkManager == null) return;
 
-            // In a live session, show the host's join code so a friend can hop
-            // in; otherwise the in-game HUD owns the screen.
-            if (networkManager.IsClient || networkManager.IsServer)
-            {
-                DrawSessionOverlay(networkManager);
-                return;
-            }
+            // In a live session the in-game HUD owns the screen; the host's
+            // join code lives in the F1 menu.
+            if (networkManager.IsClient || networkManager.IsServer) return;
 
             DrawBackdrop();
             DrawLogo();
@@ -321,24 +317,6 @@ namespace ClutchFPS.Networking
             GUILayout.Space(10);
             Player.GameSettings.DrawControls();
             GUILayout.EndArea();
-        }
-
-        /// While hosting, a small chip shows the join code so a friend can hop
-        /// in. Clients (not the server) see nothing here — the HUD owns the screen.
-        private void DrawSessionOverlay(NetworkManager networkManager)
-        {
-            if (!networkManager.IsServer || string.IsNullOrEmpty(ConnectionService.JoinCode)) return;
-
-            const float w = 178f, h = 46f;
-            Rect chip = new(Screen.width - w - 16f, 14f, w, h);
-            UITheme.Fill(chip, new Color(0.05f, 0.06f, 0.07f, 0.85f));
-            UITheme.Fill(new Rect(chip.x, chip.yMax - 2f, chip.width, 2f), UITheme.Accent);
-            GUI.Label(new Rect(chip.x + 12f, chip.y + 5f, chip.width - 24f, 14f), "JOIN CODE",
-                UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.TextDim));
-            GUI.Label(new Rect(chip.x + 12f, chip.y + 5f, chip.width - 24f, 14f), "F1 TO COPY",
-                UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleRight, UITheme.TextDim));
-            GUI.Label(new Rect(chip.x + 12f, chip.y + 17f, chip.width - 24f, 24f), ConnectionService.JoinCode,
-                UITheme.Style(20, FontStyle.Bold, TextAnchor.MiddleLeft, UITheme.Accent));
         }
 
         /// Darkens the live 3D scene behind the menu and frames it.
