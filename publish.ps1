@@ -5,7 +5,10 @@
 # Usage: close the Unity editor, then run in PowerShell:  ./publish.ps1
 # No CI / cloud license needed - it builds with your locally licensed editor.
 
-$ErrorActionPreference = "Stop"
+# Continue, not Stop: Unity writes licensing chatter to stderr and Stop would
+# treat it as a terminating error, aborting before the upload. We check exit
+# codes explicitly instead.
+$ErrorActionPreference = "Continue"
 
 $unity   = "C:\Program Files\Unity\Hub\Editor\6000.3.20f1\Editor\Unity.exe"
 $project = "C:\Users\m_lun\Projects\ClutchFPS"
