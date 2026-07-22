@@ -143,7 +143,12 @@ namespace ClutchFPS.Environment
         {
             if (IsWeapon) return $"Weapon_{Mathf.Clamp(_weaponSlot.Value, 0, 2)}";
             if (_itemId.Value < 0) return null;
-            return _itemId.Value == (int)ItemType.Medkit ? "Medkit" : "Ammo";
+            return (ItemType)_itemId.Value switch
+            {
+                ItemType.Ammo556 => "Ammo556",
+                ItemType.Ammo9mm => "Ammo9mm",
+                _ => "Medkit",
+            };
         }
 
         private void EnsureModel()

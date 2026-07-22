@@ -25,13 +25,34 @@ namespace ClutchFPS.Environment
         public bool IsAvailable => _available.Value;
         public virtual bool RequiresInteract => false;
 
+        /// Resources/Loot model key for this pickup's real mesh; null keeps the
+        /// serialized placeholder visual. Subclasses supply it.
+        protected virtual string LootModelKey => null;
+
         private Light _glow;
+        private GameObject _model;
+        private Transform _animTarget;
 
         public override void OnNetworkSpawn()
         {
             EnsureGlow();
+            EnsureModel();
             _available.OnValueChanged += (_, isAvailable) => ApplyAvailability(isAvailable);
             ApplyAvailability(_available.Value);
+        }
+
+        /// Swap the placeholder cube for the real mesh, if one exists.
+        private void EnsureModel()
+        {
+            if (_model != null || string.IsNullOrEmpty(LootModelKey)) return;
+            var prefab = Resources.Load<GameObject>($"Loot/{LootModelKey}");
+            if (prefab == null) return;
+
+            _model = Instantiate(prefab, transform);
+            _model.transform.localPosition = visual != null ? visual.transform.localPosition : Vector3.up * 0.5f;
+            foreach (var col in _model.GetComponentsInChildren<Collider>()) Destroy(col);
+            if (visual != null) visual.SetActive(false);
+            _animTarget = _model.transform;
         }
 
         /// A rarity-coloured glow so loot reads from a distance.
@@ -55,21 +76,23 @@ namespace ClutchFPS.Environment
 
         private void Update()
         {
-            if (!_available.Value || visual == null) return;
+            Transform t = _animTarget != null ? _animTarget : (visual != null ? visual.transform : null);
+            if (!_available.Value || t == null) return;
 
-            if (!_baseCaptured) { _visualBase = visual.transform.localPosition; _baseCaptured = true; }
+            if (!_baseCaptured) { _visualBase = t.localPosition; _baseCaptured = true; }
 
             // Tilted spin + bob + breathing glow so pickups read as loot rather
             // than a cube sitting on the floor.
             _spin += spinDegreesPerSecond * Time.deltaTime;
-            visual.transform.localRotation = Quaternion.AngleAxis(_spin, Vector3.up) * Quaternion.Euler(20f, 0f, 0f);
-            visual.transform.localPosition = _visualBase + Vector3.up * (0.12f + 0.08f * Mathf.Sin(Time.time * 2.2f));
+            t.localRotation = Quaternion.AngleAxis(_spin, Vector3.up) * Quaternion.Euler(20f, 0f, 0f);
+            t.localPosition = _visualBase + Vector3.up * (0.12f + 0.08f * Mathf.Sin(Time.time * 2.2f));
             if (_glow != null) _glow.intensity = 1.6f + 0.9f * (0.5f + 0.5f * Mathf.Sin(Time.time * 2.6f));
         }
 
         private void ApplyAvailability(bool isAvailable)
         {
-            if (visual != null) visual.SetActive(isAvailable);
+            if (_model != null) _model.SetActive(isAvailable);
+            else if (visual != null) visual.SetActive(isAvailable);
             if (_glow != null) _glow.enabled = isAvailable;
         }
 

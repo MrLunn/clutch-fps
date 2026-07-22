@@ -18,9 +18,13 @@ namespace ClutchFPS.EditorTools
 
             const string wep = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Meshes/Weapons";
 
-            // Items — Synty props, authored small; scale is a first guess to tune.
+            // Medkit — a real Synty medical prop.
             BuildFromFbx("Medkit", "Assets/Synty/PolygonGeneric/Models/SM_Gen_Prop_Medkit_01.fbx", 1.4f);
-            BuildFromFbx("Ammo", "Assets/Synty/PolygonGeneric/Models/SM_Gen_Prop_Crate_01.fbx", 0.7f);
+
+            // Ammo — the actual magazine meshes, not a generic crate. Mags are
+            // small, so scaled up; keyed by caliber.
+            BuildFromFbx("Ammo556", $"{wep}/ARs/SM_AR_01_Magazine_Default.fbx", 2.2f);
+            BuildFromFbx("Ammo9mm", $"{wep}/Handguns/SM_Handgun_03_Magazine_Default.fbx", 2.6f);
 
             // Weapons — keyed by slot (0 AR, 1 pistol, 2 SMG). SMG reuses the AR.
             BuildFromFbx("Weapon_0", $"{wep}/ARs/SK_AR_01.fbx", 0.9f);

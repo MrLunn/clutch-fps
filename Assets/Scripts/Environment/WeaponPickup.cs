@@ -10,6 +10,8 @@ namespace ClutchFPS.Environment
     {
         [SerializeField] private int slotIndex = 1;
 
+        protected override string LootModelKey => $"Weapon_{Mathf.Clamp(slotIndex, 0, 2)}";
+
         [Tooltip("WeaponDatabase index to equip in the slot; -1 keeps the slot's default.")]
         [SerializeField] private int weaponDataIndex = -1;
 

@@ -12,6 +12,13 @@ namespace ClutchFPS.Environment
 
         public override bool RequiresInteract => true;
 
+        protected override string LootModelKey => (Core.ItemType)itemId switch
+        {
+            Core.ItemType.Ammo556 => "Ammo556",
+            Core.ItemType.Ammo9mm => "Ammo9mm",
+            _ => "Medkit",
+        };
+
         protected override bool TryApplyTo(PlayerWeaponController player)
         {
             return player.TryGetComponent<PlayerInventory>(out var inventory)
