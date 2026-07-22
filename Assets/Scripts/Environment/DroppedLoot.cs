@@ -143,6 +143,7 @@ namespace ClutchFPS.Environment
         {
             if (IsWeapon) return $"Weapon_{Mathf.Clamp(_weaponSlot.Value, 0, 2)}";
             if (_itemId.Value < 0) return null;
+            if (Items.IsGear(_itemId.Value)) return null; // no gear mesh yet — tinted cube + glow
             return (ItemType)_itemId.Value switch
             {
                 ItemType.Ammo556 => "Ammo556",
@@ -209,6 +210,11 @@ namespace ClutchFPS.Environment
                     LootSpawner.SpawnWeapon(
                         LootSpawner.DropPoint(player.transform), _weaponSlot.Value, dropVariant);
                 }
+            }
+            else if (Items.IsGear(_itemId.Value))
+            {
+                if (!player.TryGetComponent<Health>(out var health)) return false;
+                health.ServerEquipGear((ItemType)_itemId.Value);
             }
             else
             {

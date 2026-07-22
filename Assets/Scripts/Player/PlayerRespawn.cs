@@ -138,6 +138,7 @@ namespace ClutchFPS.Player
         {
             _weapons.ServerRefillAllAmmo();
             _health.ResetHealth();
+            _health.ResetGear(); // you lose your plates when you die
             _isDead.Value = false;
 
             var spawnPoints = FindFirstObjectByType<PlayerSpawnPoints>();

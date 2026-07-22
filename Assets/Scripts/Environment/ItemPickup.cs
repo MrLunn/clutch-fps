@@ -12,7 +12,7 @@ namespace ClutchFPS.Environment
 
         public override bool RequiresInteract => true;
 
-        protected override string LootModelKey => (Core.ItemType)itemId switch
+        protected override string LootModelKey => Core.Items.IsGear(itemId) ? null : (Core.ItemType)itemId switch
         {
             Core.ItemType.Ammo556 => "Ammo556",
             Core.ItemType.Ammo9mm => "Ammo9mm",
@@ -21,6 +21,13 @@ namespace ClutchFPS.Environment
 
         protected override bool TryApplyTo(PlayerWeaponController player)
         {
+            // Gear equips on the spot; everything else stacks in the inventory.
+            if (Core.Items.IsGear(itemId))
+            {
+                if (!player.TryGetComponent<Core.Health>(out var health)) return false;
+                health.ServerEquipGear((Core.ItemType)itemId);
+                return true;
+            }
             return player.TryGetComponent<PlayerInventory>(out var inventory)
                 && inventory.ServerAddItem(itemId, amount);
         }

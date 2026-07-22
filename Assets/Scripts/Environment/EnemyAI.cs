@@ -355,6 +355,18 @@ namespace ClutchFPS.Environment
                 var (slot, variant) = RollWeaponDrop();
                 LootSpawner.SpawnWeapon(Scatter(basePos), slot, variant);
             }
+            // Occasional armor plate — heavy is rarer than light.
+            if (Random.value < 0.22f)
+            {
+                int armor = Random.value < 0.35f ? (int)ItemType.ArmorHeavy : (int)ItemType.ArmorLight;
+                LootSpawner.SpawnItem(Scatter(basePos), armor, 1);
+            }
+            // Occasional helmet.
+            if (Random.value < 0.16f)
+            {
+                int helmet = Random.value < 0.35f ? (int)ItemType.HelmetHeavy : (int)ItemType.HelmetLight;
+                LootSpawner.SpawnItem(Scatter(basePos), helmet, 1);
+            }
         }
 
         // (slot, variant, weight) — commons drop often, an epic almost never.

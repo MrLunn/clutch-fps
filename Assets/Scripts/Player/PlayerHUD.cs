@@ -1016,6 +1016,24 @@ namespace ClutchFPS.Player
                     Core.UITheme.Style(12, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
                 Core.UITheme.Bar(new Rect(block.x + 12f, block.y + 36f, 190f, 6f), fraction, healthColor);
 
+                // Armor + helmet bars stacked under the health bar, only shown
+                // when worn — they drain as they soak hits and vanish on break.
+                if (health.ArmorClass > 0)
+                {
+                    Color ac = health.ArmorClass >= 2 ? new Color(0.4f, 0.55f, 1f) : new Color(0.55f, 0.68f, 0.88f);
+                    Core.UITheme.Bar(new Rect(block.x + 12f, block.y + 46f, 130f, 5f), health.ArmorFraction, ac);
+                    GUI.Label(new Rect(block.x + 148f, block.y + 43f, 70f, 12f),
+                        health.ArmorClass >= 2 ? "HEAVY" : "ARMOR",
+                        Core.UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleLeft, ac));
+                }
+                if (health.HelmetClass > 0)
+                {
+                    Color hc = health.HelmetClass >= 2 ? new Color(0.78f, 0.88f, 0.35f) : new Color(0.72f, 0.78f, 0.55f);
+                    Core.UITheme.Bar(new Rect(block.x + 12f, block.y + 54f, 130f, 4f), health.HelmetFraction, hc);
+                    GUI.Label(new Rect(block.x + 148f, block.y + 51f, 70f, 12f), "HELMET",
+                        Core.UITheme.Style(9, FontStyle.Bold, TextAnchor.MiddleLeft, hc));
+                }
+
                 // Medkit pip beside the vitals: count carried + the use key.
                 if (inventory != null)
                 {
