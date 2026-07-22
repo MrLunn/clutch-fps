@@ -109,6 +109,7 @@ namespace ClutchFPS.Player
 
             // Same crosshair hip-fire or ADS — the view models carry no sights
             // of their own, so keep the familiar reticle in both states.
+            DrawHurtFlash();
             DrawCrosshair();
             DrawHitmarker();
             DrawStatus();
@@ -507,6 +508,20 @@ namespace ClutchFPS.Player
         }
 
         /// Red arcs around the crosshair pointing back toward recent hits.
+        /// A brief red wash when the local player takes a hit — reads as
+        /// "you got shot" even when the damage came from off-screen.
+        private void DrawHurtFlash()
+        {
+            float since = Time.time - PlayerRespawn.LastHitTime;
+            if (since < 0f || since > 0.35f) return;
+
+            float alpha = (1f - since / 0.35f) * 0.35f;
+            var prev = GUI.color;
+            GUI.color = new Color(0.7f, 0f, 0f, alpha);
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Pixel);
+            GUI.color = prev;
+        }
+
         private void DrawDamageIndicators()
         {
             var hits = PlayerRespawn.LocalDamage;

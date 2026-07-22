@@ -436,6 +436,7 @@ namespace ClutchFPS.Weapons
                 if (_aiming) recoilScale *= Data.adsRecoilMultiplier;
                 _mouseLook.AddRecoil(Data.recoilPitchKick * recoilScale, Data.recoilYawKick * recoilScale);
                 _localBloom = Mathf.Min(1f, _localBloom + Data.bloomPerShot);
+                Player.CameraShake.Add(0.06f + 0.04f * recoilScale);
             }
         }
 

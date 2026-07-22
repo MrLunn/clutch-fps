@@ -46,6 +46,9 @@ namespace ClutchFPS.Player
         // local; entries age out after a short window.
         public struct DamageHit { public Vector3 Source; public float Time; }
         private static readonly List<DamageHit> _localDamage = new();
+
+        /// When the local player last took a hit — the HUD flashes red off this.
+        public static float LastHitTime { get; private set; } = -10f;
         public static IReadOnlyList<DamageHit> LocalDamage
         {
             get
@@ -71,6 +74,8 @@ namespace ClutchFPS.Player
         {
             if (!IsOwner) return;
             _localDamage.Add(new DamageHit { Source = source, Time = Time.time });
+            LastHitTime = Time.time;
+            CameraShake.Add(0.32f);
         }
 
         private void Awake()

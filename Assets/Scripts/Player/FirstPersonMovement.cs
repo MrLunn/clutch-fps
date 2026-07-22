@@ -167,6 +167,9 @@ namespace ClutchFPS.Player
         {
             // Only the owning client drives its own movement input.
             enabled = IsOwner;
+            // Camera shake lives on the local player's pivot only.
+            if (IsOwner && cameraPivot != null && cameraPivot.GetComponent<CameraShake>() == null)
+                cameraPivot.gameObject.AddComponent<CameraShake>();
             _crouchedSync.OnValueChanged += (_, crouched) => ApplyBodyCrouch(crouched);
             ApplyBodyCrouch(_crouchedSync.Value);
             _moveStateSync.OnValueChanged += (_, state) => ApplyFootsteps(state);
