@@ -1,6 +1,7 @@
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering.Universal;
 
 namespace ClutchFPS.Player
 {
@@ -170,6 +171,13 @@ namespace ClutchFPS.Player
             // Camera shake lives on the local player's pivot only.
             if (IsOwner && cameraPivot != null && cameraPivot.GetComponent<CameraShake>() == null)
                 cameraPivot.gameObject.AddComponent<CameraShake>();
+            // Guarantee the mood volume (grade/vignette/grain) actually renders —
+            // it's silently invisible if the camera has post-processing off.
+            if (IsOwner && _camera != null)
+            {
+                var camData = _camera.GetUniversalAdditionalCameraData();
+                if (camData != null) camData.renderPostProcessing = true;
+            }
             _crouchedSync.OnValueChanged += (_, crouched) => ApplyBodyCrouch(crouched);
             ApplyBodyCrouch(_crouchedSync.Value);
             _moveStateSync.OnValueChanged += (_, state) => ApplyFootsteps(state);
