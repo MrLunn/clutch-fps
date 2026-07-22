@@ -142,10 +142,9 @@ namespace ClutchFPS.Player
             _isDead.Value = false;
 
             var spawnPoints = FindFirstObjectByType<PlayerSpawnPoints>();
-            var point = spawnPoints != null ? spawnPoints.GetRandomSpawnPoint() : null;
-            if (point != null && _movement != null)
+            if (spawnPoints != null && _movement != null)
             {
-                _movement.TeleportClientRpc(point.position);
+                _movement.TeleportClientRpc(spawnPoints.GetRandomSpawnPosition());
             }
         }
 

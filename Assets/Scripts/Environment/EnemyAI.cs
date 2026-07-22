@@ -84,6 +84,7 @@ namespace ClutchFPS.Environment
                 return;
             }
             _home = transform.position;
+            respawnDelay = 35f; // forced regardless of the prefab's serialized value
             _health.Died += OnDiedServer;
         }
 
