@@ -101,15 +101,20 @@ namespace ClutchFPS.Environment
         }
 
         private Light _glow;
+        private GameObject _model;
+        private Transform _animTarget;
 
-        /// Colour the drop by what it holds — item tint, or weapon rarity — so
-        /// you can tell from across a room whether it is worth the walk. Also
-        /// lights a small glow in the same colour for visibility.
+        /// Swap in the real mesh for this loot's type (built into Resources/Loot),
+        /// colour a rarity glow, and — for the fallback cube only — tint it.
         private void ApplyTint()
         {
             Color tint = IsWeapon ? RarityColors.Get(Rarity) : Items.Get(_itemId.Value).Tint;
 
-            if (visual != null && visual.TryGetComponent<Renderer>(out var renderer))
+            EnsureModel();
+
+            // Only the placeholder cube gets tinted; real models keep their
+            // own textures and show rarity through the glow instead.
+            if (_model == null && visual != null && visual.TryGetComponent<Renderer>(out var renderer))
             {
                 var block = new MaterialPropertyBlock();
                 renderer.GetPropertyBlock(block);
@@ -132,15 +137,40 @@ namespace ClutchFPS.Environment
             _glow.color = tint;
         }
 
+        /// The Resources/Loot model key for this loot, or null before the type
+        /// has synced in.
+        private string ModelKey()
+        {
+            if (IsWeapon) return $"Weapon_{Mathf.Clamp(_weaponSlot.Value, 0, 2)}";
+            if (_itemId.Value < 0) return null;
+            return _itemId.Value == (int)ItemType.Medkit ? "Medkit" : "Ammo";
+        }
+
+        private void EnsureModel()
+        {
+            if (_model != null) return;
+            string key = ModelKey();
+            if (key == null) return;
+            var prefab = Resources.Load<GameObject>($"Loot/{key}");
+            if (prefab == null) return; // fall back to the cube
+
+            _model = Instantiate(prefab, transform);
+            _model.transform.localPosition = _visualBase;
+            foreach (var col in _model.GetComponentsInChildren<Collider>()) Destroy(col);
+            if (visual != null) visual.gameObject.SetActive(false);
+            _animTarget = _model.transform;
+        }
+
         private void Update()
         {
-            if (visual == null) return;
+            var target = _animTarget != null ? _animTarget : visual;
+            if (target == null) return;
 
             // Tilted spin so it tumbles like a token, not a flat box; a gentle
             // bob floats it off the ground; the glow breathes. Reads as loot.
             _spin += spinDegreesPerSecond * Time.deltaTime;
-            visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.up) * Quaternion.Euler(22f, 0f, 0f);
-            visual.localPosition = _visualBase + Vector3.up * (0.18f + 0.1f * Mathf.Sin(Time.time * 2.4f));
+            target.localRotation = Quaternion.AngleAxis(_spin, Vector3.up) * Quaternion.Euler(22f, 0f, 0f);
+            target.localPosition = _visualBase + Vector3.up * (0.18f + 0.1f * Mathf.Sin(Time.time * 2.4f));
             if (_glow != null) _glow.intensity = 2.0f + 1.1f * (0.5f + 0.5f * Mathf.Sin(Time.time * 3f));
         }
 
