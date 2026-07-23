@@ -67,6 +67,16 @@ namespace ClutchFPS.Environment
         private int _shotsInBurst;
         private bool _dead;
 
+        /// Enemy flavours. Rolled server-side at spawn and synced so every
+        /// client can colour them — you should be able to read the threat
+        /// before it starts shooting.
+        public enum Archetype : byte { Grunt = 0, Armored = 1, Rusher = 2, Sniper = 3 }
+
+        private readonly NetworkVariable<byte> _archetype = new(
+            writePerm: NetworkVariableWritePermission.Server);
+
+        public Archetype Kind => (Archetype)_archetype.Value;
+
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
@@ -76,21 +86,104 @@ namespace ClutchFPS.Environment
 
         public override void OnNetworkSpawn()
         {
+            _archetype.OnValueChanged += (_, v) => ApplyArchetypeVisual((Archetype)v);
+
             if (!IsServer)
             {
                 // Clients just render what the server syncs.
+                ApplyArchetypeVisual(Kind);
                 _agent.enabled = false;
                 enabled = false;
                 return;
             }
             _home = transform.position;
             respawnDelay = 35f; // forced regardless of the prefab's serialized value
+
+            var kind = RollArchetype();
+            _archetype.Value = (byte)kind;
+            ApplyArchetypeStats(kind);
+            ApplyArchetypeVisual(kind);
+
             _health.Died += OnDiedServer;
         }
 
         public override void OnNetworkDespawn()
         {
             if (IsServer) _health.Died -= OnDiedServer;
+        }
+
+        // Grunts stay the backbone; the rest season the fight.
+        private static Archetype RollArchetype()
+        {
+            int roll = Random.Range(0, 100);
+            if (roll < 55) return Archetype.Grunt;
+            if (roll < 75) return Archetype.Rusher;
+            if (roll < 90) return Archetype.Armored;
+            return Archetype.Sniper;
+        }
+
+        /// Server-only: reshape this enemy's stats for its flavour. Deliberately
+        /// no helmets — headshots stay a one-shot kill on every archetype.
+        private void ApplyArchetypeStats(Archetype kind)
+        {
+            switch (kind)
+            {
+                case Archetype.Armored:
+                    // Tanky via the same plate system players use, so it drains
+                    // and breaks as you shoot it.
+                    _health.ServerEquipGear(ItemType.ArmorHeavy);
+                    _agent.speed *= 0.75f;
+                    damage *= 1.2f;
+                    fireCooldown *= 1.15f;
+                    break;
+
+                case Archetype.Rusher:
+                    // Fast and twitchy, but sprays and hits softer.
+                    _agent.speed *= 1.55f;
+                    reactionTime *= 0.45f;
+                    fireCooldown *= 0.6f;
+                    attackRange *= 0.65f;
+                    damage *= 0.8f;
+                    missChance = Mathf.Clamp01(missChance + 0.12f);
+                    burstSize += 2;
+                    break;
+
+                case Archetype.Sniper:
+                    // Holds long angles, hits hard, punishes standing still.
+                    sightRange *= 1.9f;
+                    attackRange *= 2f;
+                    damage *= 2.2f;
+                    fireCooldown *= 2.6f;
+                    aimSpreadDegrees *= 0.35f;
+                    aimErrorMetres *= 0.4f;
+                    missChance *= 0.4f;
+                    burstSize = 1;
+                    _agent.speed *= 0.85f;
+                    break;
+            }
+        }
+
+        /// Runs on every peer so enemies are colour-coded for everyone.
+        private void ApplyArchetypeVisual(Archetype kind)
+        {
+            if (visual == null) return;
+            Color tint = kind switch
+            {
+                Archetype.Armored => new Color(0.42f, 0.5f, 0.62f), // steel
+                Archetype.Rusher => new Color(0.85f, 0.42f, 0.2f),  // hot orange
+                Archetype.Sniper => new Color(0.35f, 0.55f, 0.36f), // woodland green
+                _ => Color.white,
+            };
+            if (kind == Archetype.Grunt) return; // leave the default look alone
+
+            foreach (var renderer in visual.GetComponentsInChildren<Renderer>(true))
+            {
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                block.SetColor("_BaseColor", tint);
+                block.SetColor("_Color", tint);
+                renderer.SetPropertyBlock(block);
+            }
         }
 
         private void Update()
@@ -350,20 +443,35 @@ namespace ClutchFPS.Environment
             {
                 LootSpawner.SpawnItem(Scatter(basePos), (int)ItemType.Medkit, 1);
             }
+            // Tougher flavours are worth hunting: they pay out more often.
+            float bonus = Kind switch
+            {
+                Archetype.Sniper => 0.25f,
+                Archetype.Armored => 0.2f,
+                Archetype.Rusher => 0.06f,
+                _ => 0f,
+            };
+
             // Occasional weapon, rarity-weighted so rares/epics feel earned.
-            if (Random.value < 0.18f)
+            if (Random.value < 0.18f + bonus)
             {
                 var (slot, variant) = RollWeaponDrop();
                 LootSpawner.SpawnWeapon(Scatter(basePos), slot, variant);
             }
-            // Occasional armor plate — heavy is rarer than light.
-            if (Random.value < 0.22f)
+            // Occasional armor plate — heavy is rarer than light. Armored
+            // enemies always shed the plate you just broke off them.
+            if (Kind == Archetype.Armored || Random.value < 0.22f + bonus)
             {
-                int armor = Random.value < 0.35f ? (int)ItemType.ArmorHeavy : (int)ItemType.ArmorLight;
+                int armor = Random.value < 0.35f + bonus ? (int)ItemType.ArmorHeavy : (int)ItemType.ArmorLight;
                 LootSpawner.SpawnItem(Scatter(basePos), armor, 1);
             }
+            // Frags, so you can actually restock what you throw.
+            if (Random.value < 0.2f + bonus)
+            {
+                LootSpawner.SpawnItem(Scatter(basePos), (int)ItemType.Grenade, Random.Range(1, 3));
+            }
             // Occasional helmet.
-            if (Random.value < 0.16f)
+            if (Random.value < 0.16f + bonus)
             {
                 int helmet = Random.value < 0.35f ? (int)ItemType.HelmetHeavy : (int)ItemType.HelmetLight;
                 LootSpawner.SpawnItem(Scatter(basePos), helmet, 1);
@@ -407,6 +515,9 @@ namespace ClutchFPS.Environment
         {
             _agent.Warp(_home);
             _health.ResetHealth();
+            // Re-plate the tank; its stat multipliers already persist, so only
+            // the consumable armor needs restoring.
+            if (Kind == Archetype.Armored) _health.ServerEquipGear(ItemType.ArmorHeavy);
             _dead = false;
             SetDeadClientRpc(false);
         }

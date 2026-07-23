@@ -12,7 +12,8 @@ namespace ClutchFPS.Core
         ArmorLight = 3,
         ArmorHeavy = 4,
         HelmetLight = 5,
-        HelmetHeavy = 6
+        HelmetHeavy = 6,
+        Grenade = 7
     }
 
     public struct ItemInfo
@@ -35,7 +36,8 @@ namespace ClutchFPS.Core
             new() { Name = "Light Armor", MaxStack = 1, Tint = new Color(0.45f, 0.62f, 0.85f), Usable = false },
             new() { Name = "Heavy Armor", MaxStack = 1, Tint = new Color(0.35f, 0.5f, 0.95f), Usable = false },
             new() { Name = "Light Helmet", MaxStack = 1, Tint = new Color(0.7f, 0.75f, 0.55f), Usable = false },
-            new() { Name = "Heavy Helmet", MaxStack = 1, Tint = new Color(0.6f, 0.7f, 0.35f), Usable = false }
+            new() { Name = "Heavy Helmet", MaxStack = 1, Tint = new Color(0.6f, 0.7f, 0.35f), Usable = false },
+            new() { Name = "Frag Grenade", MaxStack = 3, Tint = new Color(0.35f, 0.42f, 0.3f), Usable = false }
         };
 
         public static ItemInfo Get(int id) =>

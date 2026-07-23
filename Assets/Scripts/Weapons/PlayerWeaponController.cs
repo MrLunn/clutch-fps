@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -157,6 +158,62 @@ namespace ClutchFPS.Weapons
                 _inventory ??= GetComponent<Player.PlayerInventory>();
                 _inventory?.UseMedkit();
             }
+            if (keyboard != null && keyboard.gKey.wasPressedThisFrame)
+            {
+                TryThrowGrenade();
+            }
+        }
+
+        private float _nextGrenadeTime;
+
+        /// Owner-side: lob a frag if we're carrying one. The server owns the
+        /// flight and the damage; clients just get a ball to watch.
+        private void TryThrowGrenade()
+        {
+            if (!IsOwner || Time.time < _nextGrenadeTime || playerCamera == null) return;
+            _inventory ??= GetComponent<Player.PlayerInventory>();
+            if (_inventory == null || _inventory.CountOf((int)Core.ItemType.Grenade) <= 0) return;
+
+            _nextGrenadeTime = Time.time + 0.9f;
+            var cam = playerCamera.transform;
+            // Slight upward bias so it arcs instead of bouncing off your boots.
+            ThrowGrenadeServerRpc(cam.position + cam.forward * 0.6f,
+                (cam.forward + cam.up * 0.18f).normalized);
+        }
+
+        [ServerRpc]
+        private void ThrowGrenadeServerRpc(Vector3 origin, Vector3 direction, ServerRpcParams _ = default)
+        {
+            var inventory = GetComponent<Player.PlayerInventory>();
+            if (inventory == null || inventory.ServerTakeItem((int)Core.ItemType.Grenade, 1) <= 0) return;
+
+            ThrowGrenadeClientRpc(origin, direction);
+            StartCoroutine(ServerGrenadeFlight(origin, direction, OwnerClientId));
+        }
+
+        private IEnumerator ServerGrenadeFlight(Vector3 origin, Vector3 direction, ulong thrower)
+        {
+            Vector3 position = origin;
+            Vector3 velocity = direction * Grenade.ThrowSpeed;
+            for (float t = 0f; t < Grenade.Fuse; t += Time.deltaTime)
+            {
+                position = Grenade.Step(position, ref velocity, Time.deltaTime);
+                yield return null;
+            }
+            Grenade.ServerExplode(position, thrower);
+            ExplodeClientRpc(position);
+        }
+
+        [ClientRpc]
+        private void ThrowGrenadeClientRpc(Vector3 origin, Vector3 direction)
+        {
+            Grenade.SpawnVisual(origin, direction);
+        }
+
+        [ClientRpc]
+        private void ExplodeClientRpc(Vector3 centre)
+        {
+            Grenade.SpawnExplosionFx(centre);
         }
 
         private void HandleSwitchInput()

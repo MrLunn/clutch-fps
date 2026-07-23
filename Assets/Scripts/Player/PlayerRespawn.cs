@@ -75,7 +75,7 @@ namespace ClutchFPS.Player
             if (!IsOwner) return;
             _localDamage.Add(new DamageHit { Source = source, Time = Time.time });
             LastHitTime = Time.time;
-            CameraShake.Add(0.32f);
+            CameraShake.Add(0.55f);
         }
 
         private void Awake()

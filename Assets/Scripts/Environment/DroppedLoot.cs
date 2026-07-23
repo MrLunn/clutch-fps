@@ -143,12 +143,14 @@ namespace ClutchFPS.Environment
         {
             if (IsWeapon) return $"Weapon_{Mathf.Clamp(_weaponSlot.Value, 0, 2)}";
             if (_itemId.Value < 0) return null;
-            if (Items.IsGear(_itemId.Value)) return null; // no gear mesh yet — tinted cube + glow
+            // Only these have real meshes; gear and frags fall back to the
+            // tinted cube + rarity glow until they get art.
             return (ItemType)_itemId.Value switch
             {
                 ItemType.Ammo556 => "Ammo556",
                 ItemType.Ammo9mm => "Ammo9mm",
-                _ => "Medkit",
+                ItemType.Medkit => "Medkit",
+                _ => null,
             };
         }
 

@@ -12,11 +12,12 @@ namespace ClutchFPS.Environment
 
         public override bool RequiresInteract => true;
 
-        protected override string LootModelKey => Core.Items.IsGear(itemId) ? null : (Core.ItemType)itemId switch
+        protected override string LootModelKey => (Core.ItemType)itemId switch
         {
             Core.ItemType.Ammo556 => "Ammo556",
             Core.ItemType.Ammo9mm => "Ammo9mm",
-            _ => "Medkit",
+            Core.ItemType.Medkit => "Medkit",
+            _ => null, // gear and frags use the tinted placeholder for now
         };
 
         protected override bool TryApplyTo(PlayerWeaponController player)

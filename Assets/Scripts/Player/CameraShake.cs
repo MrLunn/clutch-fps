@@ -35,17 +35,18 @@ namespace ClutchFPS.Player
         {
             if (_trauma <= 0.0001f) { _trauma = 0f; return; }
 
-            // Quadratic falloff feels punchier than linear.
-            float s = _trauma * _trauma;
-            float t = Time.time * 24f;
-            float nx = Mathf.PerlinNoise(_seed, t) - 0.5f;
-            float ny = Mathf.PerlinNoise(_seed + 11f, t) - 0.5f;
-            float nz = Mathf.PerlinNoise(_seed + 23f, t) - 0.5f;
+            // Slightly super-linear falloff: big hits still dominate, but small
+            // trauma stays visible (squaring made per-shot kick imperceptible).
+            float s = _trauma * Mathf.Lerp(0.55f, 1f, _trauma);
+            float t = Time.time * 28f;
+            float nx = (Mathf.PerlinNoise(_seed, t) - 0.5f) * 2f;
+            float ny = (Mathf.PerlinNoise(_seed + 11f, t) - 0.5f) * 2f;
+            float nz = (Mathf.PerlinNoise(_seed + 23f, t) - 0.5f) * 2f;
 
-            transform.localPosition += new Vector3(nx, ny, 0f) * (s * 0.14f);
-            transform.localRotation *= Quaternion.Euler(ny * s * 2f, nx * s * 2f, nz * s * 4f);
+            transform.localPosition += new Vector3(nx, ny, 0f) * (s * 0.12f);
+            transform.localRotation *= Quaternion.Euler(ny * s * 6f, nx * s * 6f, nz * s * 9f);
 
-            _trauma = Mathf.MoveTowards(_trauma, 0f, Time.deltaTime * 1.8f);
+            _trauma = Mathf.MoveTowards(_trauma, 0f, Time.deltaTime * 2.2f);
         }
     }
 }

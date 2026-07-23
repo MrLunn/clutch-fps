@@ -51,12 +51,14 @@ namespace ClutchFPS.Environment
             if (!RandomNavPoint(out var pos)) return;
 
             int roll = Random.Range(0, 100);
-            int id = roll < 40 ? (int)ItemType.ArmorLight
-                   : roll < 60 ? (int)ItemType.ArmorHeavy
-                   : roll < 80 ? (int)ItemType.HelmetLight
-                   : roll < 90 ? (int)ItemType.HelmetHeavy
+            int id = roll < 30 ? (int)ItemType.ArmorLight
+                   : roll < 46 ? (int)ItemType.ArmorHeavy
+                   : roll < 62 ? (int)ItemType.HelmetLight
+                   : roll < 72 ? (int)ItemType.HelmetHeavy
+                   : roll < 88 ? (int)ItemType.Grenade
                    : (int)ItemType.Medkit;
-            LootSpawner.SpawnItem(pos, id, 1);
+            int amount = id == (int)ItemType.Grenade ? Random.Range(1, 3) : 1;
+            LootSpawner.SpawnItem(pos, id, amount);
         }
 
         private bool RandomNavPoint(out Vector3 pos)

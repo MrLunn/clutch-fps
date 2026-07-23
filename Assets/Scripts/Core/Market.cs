@@ -22,6 +22,12 @@ namespace ClutchFPS.Core
             new() { Name = "Medkit",         Price = 800,   ItemId = (int)ItemType.Medkit,  Count = 1 },
             new() { Name = "5.56 x30",       Price = 450,   ItemId = (int)ItemType.Ammo556, Count = 30 },
             new() { Name = "9mm x30",        Price = 300,   ItemId = (int)ItemType.Ammo9mm, Count = 30 },
+            new() { Name = "Frag x2",        Price = 700,   ItemId = (int)ItemType.Grenade, Count = 2 },
+            // Gear: worn on entry, lost if you go down.
+            new() { Name = "Light Armor",    Price = 1200,  ItemId = (int)ItemType.ArmorLight,  Count = 1 },
+            new() { Name = "Heavy Armor",    Price = 3200,  ItemId = (int)ItemType.ArmorHeavy,  Count = 1 },
+            new() { Name = "Light Helmet",   Price = 900,   ItemId = (int)ItemType.HelmetLight, Count = 1 },
+            new() { Name = "Heavy Helmet",   Price = 2600,  ItemId = (int)ItemType.HelmetHeavy, Count = 1 },
             // Pistols (slot 1)
             new() { Name = "Pistol",         Price = 2000,  IsWeapon = true, Slot = 1, Variant = -1, Rarity = Rarity.Common },
             new() { Name = "Machine Pistol", Price = 3000,  IsWeapon = true, Slot = 1, Variant = 6,  Rarity = Rarity.Uncommon },
@@ -42,6 +48,11 @@ namespace ClutchFPS.Core
             ItemType.Medkit => 300,
             ItemType.Ammo556 => 5,
             ItemType.Ammo9mm => 3,
+            ItemType.Grenade => 250,
+            ItemType.ArmorLight => 420,
+            ItemType.ArmorHeavy => 1150,
+            ItemType.HelmetLight => 320,
+            ItemType.HelmetHeavy => 950,
             _ => 1
         };
 

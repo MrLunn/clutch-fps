@@ -143,6 +143,13 @@ namespace ClutchFPS.Player
             // ...plus the equipped consumables on top.
             for (int i = 0; i < loadIds.Length; i++)
             {
+                // Armor and helmets are worn, not carried — put them straight on
+                // instead of into the bag. Best class wins if you brought several.
+                if (Items.IsGear(loadIds[i]))
+                {
+                    _health.ServerEquipGear((ItemType)loadIds[i]);
+                    continue;
+                }
                 int at = ids.IndexOf(loadIds[i]);
                 if (at >= 0) counts[at] += loadCounts[i];
                 else { ids.Add(loadIds[i]); counts.Add(loadCounts[i]); }
@@ -180,6 +187,16 @@ namespace ClutchFPS.Player
             // across raids instead of overwriting each other.
             StashService.Deposit(_playerName, _weapons.OwnedSlotsMask,
                 _weapons.ServerGetVariants(), ids, counts);
+
+            // Gear you walked out still wearing comes home with you — dying is
+            // what costs you the plate, not using it.
+            if (_health != null)
+            {
+                if (_health.ArmorClass == 1) StashService.AddItem(_playerName, (int)ItemType.ArmorLight, 1);
+                else if (_health.ArmorClass == 2) StashService.AddItem(_playerName, (int)ItemType.ArmorHeavy, 1);
+                if (_health.HelmetClass == 1) StashService.AddItem(_playerName, (int)ItemType.HelmetLight, 1);
+                else if (_health.HelmetClass == 2) StashService.AddItem(_playerName, (int)ItemType.HelmetHeavy, 1);
+            }
             _extracted.Value = true;
 
             // Kill credits were already banked as they happened. Extraction adds

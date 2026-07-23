@@ -1050,6 +1050,21 @@ namespace ClutchFPS.Player
                             medkits > 0 ? Core.UITheme.TextBright : Core.UITheme.TextDim));
                     GUI.Label(new Rect(pip.x + 42f, pip.y + 27f, 46f, 14f), "[4]",
                         Core.UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
+
+                    // Frag pip beside the medkit: count carried + the throw key.
+                    int frags = inventory.CountOf((int)Core.ItemType.Grenade);
+                    Rect fragPip = new(pip.xMax + 8f, pip.y, 92f, 46f);
+                    Core.UITheme.Fill(fragPip, new Color(0.06f, 0.07f, 0.08f, 0.85f));
+                    Core.UITheme.Fill(new Rect(fragPip.x, fragPip.y, 3f, fragPip.height),
+                        frags > 0 ? Core.UITheme.Success : Core.UITheme.TextDim);
+                    Core.IconLibrary.Draw(new Rect(fragPip.x + 10f, fragPip.y + 10f, 26f, 26f),
+                        Core.IconLibrary.Item((int)Core.ItemType.Grenade),
+                        Core.Items.Get((int)Core.ItemType.Grenade).Tint);
+                    GUI.Label(new Rect(fragPip.x + 42f, fragPip.y + 6f, 46f, 22f), "x" + frags,
+                        Core.UITheme.Style(20, FontStyle.Bold, TextAnchor.MiddleLeft,
+                            frags > 0 ? Core.UITheme.TextBright : Core.UITheme.TextDim));
+                    GUI.Label(new Rect(fragPip.x + 42f, fragPip.y + 27f, 46f, 14f), "[G]",
+                        Core.UITheme.Style(10, FontStyle.Bold, TextAnchor.MiddleLeft, Core.UITheme.TextDim));
                 }
             }
 
