@@ -387,8 +387,9 @@ namespace ClutchFPS.Environment
                 float x = centre.x - 10f + (i % 4) * 7f;
                 float z = centre.z - 14f + (i / 4) * 11f;
                 // Nudge the NE-corner container (against the east wall, by the
-                // north extraction) 2m west, off the wall.
-                if (i == 11) x -= 2f;
+                // north extraction) 2m west, off the wall — and shift its west
+                // neighbour the same 2m so their gap stays the yard's usual 7m.
+                if (i == 11 || i == 10) x -= 2f;
                 int stack = rng.Next(1, 3);
                 for (int s = 0; s < stack; s++)
                 {
