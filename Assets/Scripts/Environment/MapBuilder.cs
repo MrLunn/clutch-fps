@@ -35,9 +35,23 @@ namespace ClutchFPS.Environment
         [SerializeField] private float mapSize = 90f;
         [SerializeField] private float wallHeight = 6f;
 
+        [Header("Baking")]
+        [Tooltip("When off, the map is assumed to already exist in the scene " +
+                 "(baked to hand-editable objects) and is not regenerated at " +
+                 "runtime. Zone labels for the radar are still published.")]
+        [SerializeField] private bool buildOnAwake = true;
+
         private Transform _root;
 
         private void Awake()
+        {
+            if (buildOnAwake) BuildGeneratedMap();
+            // Radar zone labels are needed whether the map was generated now or
+            // baked into the scene earlier.
+            RegisterZones();
+        }
+
+        private void BuildGeneratedMap()
         {
             _root = new GameObject("GeneratedMap").transform;
             _root.SetParent(transform, false);
@@ -50,8 +64,25 @@ namespace ClutchFPS.Environment
             BuildContainerYard();
             BuildPlaza();
             BuildSpawnYard();
-            RegisterZones();
         }
+
+#if UNITY_EDITOR
+        /// Editor-only: bake the generated map into real, saveable scene objects
+        /// so it can be hand-edited, then stop runtime regeneration. Invoked by
+        /// the Tools/Bake Map command.
+        public void EditorBakeIntoScene()
+        {
+            // Clear any previous bake so this is repeatable.
+            for (int i = transform.childCount - 1; i >= 0; i--)
+            {
+                var child = transform.GetChild(i);
+                if (child.name == "GeneratedMap") DestroyImmediate(child.gameObject);
+            }
+            BuildGeneratedMap();
+            _root.name = "GeneratedMap"; // stays as the tidy parent for the bake
+            buildOnAwake = false;        // don't regenerate over the baked copy
+        }
+#endif
 
         /// Publish each zone's footprint for the HUD radar's location label.
         /// Rectangles roughly match the geometry each Build* method lays down.
@@ -78,7 +109,12 @@ namespace ClutchFPS.Environment
             var renderer = go.GetComponent<Renderer>();
             if (material != null) renderer.sharedMaterial = material;
             if (tile && material != null) ApplyTiling(renderer, size);
-            if (!collide) Destroy(go.GetComponent<Collider>());
+            if (!collide)
+            {
+                var collider = go.GetComponent<Collider>();
+                if (Application.isPlaying) Destroy(collider);
+                else DestroyImmediate(collider);
+            }
             return go;
         }
 
@@ -95,9 +131,19 @@ namespace ClutchFPS.Environment
             float u = (flat ? size.x : Mathf.Max(size.x, size.z)) / metresPerTile;
             float v = (flat ? size.z : size.y) / metresPerTile;
 
+            var st = new Vector4(Mathf.Max(u, 0.05f), Mathf.Max(v, 0.05f), 0f, 0f);
+
+            // When baking in the editor, carry the tiling on a serialized
+            // component so it survives the save; at runtime the transient
+            // property block is enough.
+            if (!Application.isPlaying)
+            {
+                renderer.gameObject.AddComponent<StaticTile>().SetTiling(st);
+                return;
+            }
+
             _block ??= new MaterialPropertyBlock();
             renderer.GetPropertyBlock(_block);
-            var st = new Vector4(Mathf.Max(u, 0.05f), Mathf.Max(v, 0.05f), 0f, 0f);
             _block.SetVector(BaseMapST, st);
             _block.SetVector(MainTexST, st);
             renderer.SetPropertyBlock(_block);
