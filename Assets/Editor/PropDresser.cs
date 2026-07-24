@@ -34,8 +34,9 @@ namespace ClutchFPS.EditorTools
             ("Road_block_v1", 14f, 1f, 90f),
 
             // --- Warehouse (west): pallets, pipes, power ---
-            ("Palet_v1_set", -38f, -10f, 0f),
-            ("Bags_on_pallet_v1_1", -35.5f, -11f, 15f),
+            // Clear of the catwalk ramp, which occupies x -38..-30, z -14..-4.
+            ("Palet_v1_set", -22f, -11f, 0f),
+            ("Bags_on_pallet_v1_1", -19.5f, -11.5f, 15f),
             ("Generator_v1", -40f, 20f, 45f),
             ("Electric_box_v1", -41f, 4f, 90f),
             ("Pipes_set_v1_H_set_v1", -41f, -6f, 0f),
@@ -77,7 +78,9 @@ namespace ClutchFPS.EditorTools
             if (existing != null) Object.DestroyImmediate(existing);
             var root = new GameObject(DressingRoot);
 
-            int placed = 0, missing = 0;
+            var obstacles = CollectMapObstacles();
+
+            int placed = 0, missing = 0, nudged = 0, dropped = 0;
             foreach (var p in Placements)
             {
                 var prefab = FindPrefab(p.prefab);
@@ -86,12 +89,88 @@ namespace ClutchFPS.EditorTools
                 var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root.transform);
                 instance.transform.SetPositionAndRotation(new Vector3(p.x, 0f, p.z), Quaternion.Euler(0f, p.yaw, 0f));
                 SeatOnGround(instance);
+
+                // Don't let props bury themselves in walls, ramps or racking:
+                // search outward for the nearest clear spot, and bin the prop if
+                // there isn't one rather than leaving it clipping.
+                if (Overlaps(instance, obstacles))
+                {
+                    if (TryFindClearSpot(instance, obstacles)) { nudged++; }
+                    else
+                    {
+                        Debug.LogWarning($"PropDresser: no clear spot for {p.prefab} near ({p.x}, {p.z}) - skipped.");
+                        Object.DestroyImmediate(instance);
+                        dropped++;
+                        continue;
+                    }
+                }
                 placed++;
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
-            Debug.Log($"PropDresser: placed {placed} props ({missing} missing) under '{DressingRoot}'.");
+            Debug.Log($"PropDresser: placed {placed} props ({nudged} nudged clear, {dropped} skipped, {missing} missing) under '{DressingRoot}'.");
+        }
+
+        /// World-space bounds of the baked map's solid geometry. Flat things
+        /// (floors, gravel, road markings) are ignored — every prop sits on
+        /// those by definition.
+        private static List<Bounds> CollectMapObstacles()
+        {
+            var list = new List<Bounds>();
+            var builder = Object.FindFirstObjectByType<ClutchFPS.Environment.MapBuilder>();
+            if (builder == null) return list;
+
+            foreach (var renderer in builder.GetComponentsInChildren<Renderer>())
+            {
+                var b = renderer.bounds;
+                if (b.max.y < 0.35f) continue;   // ground plane, decals, painted lines
+                list.Add(b);
+            }
+            return list;
+        }
+
+        /// Slightly shrunk so props may touch geometry without counting as
+        /// clipping through it.
+        private static bool Overlaps(GameObject instance, List<Bounds> obstacles)
+        {
+            if (!TryGetWorldBounds(instance, out var bounds)) return false;
+            bounds.Expand(-0.3f);
+            if (bounds.size.x <= 0f || bounds.size.z <= 0f) return false;
+
+            for (int i = 0; i < obstacles.Count; i++)
+            {
+                if (obstacles[i].Intersects(bounds)) return true;
+            }
+            return false;
+        }
+
+        /// Spiral outward from the intended spot looking for open ground.
+        private static bool TryFindClearSpot(GameObject instance, List<Bounds> obstacles)
+        {
+            Vector3 origin = instance.transform.position;
+            for (float radius = 1.5f; radius <= 9f; radius += 1.5f)
+            {
+                for (int step = 0; step < 12; step++)
+                {
+                    float angle = step * Mathf.PI * 2f / 12f;
+                    instance.transform.position = origin + new Vector3(
+                        Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                    SeatOnGround(instance);
+                    if (!Overlaps(instance, obstacles)) return true;
+                }
+            }
+            instance.transform.position = origin;
+            return false;
+        }
+
+        private static bool TryGetWorldBounds(GameObject instance, out Bounds bounds)
+        {
+            var renderers = instance.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) { bounds = default; return false; }
+            bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+            return true;
         }
 
         /// Drop the prop so the bottom of its combined renderer bounds rests on
